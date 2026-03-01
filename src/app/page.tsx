@@ -100,6 +100,7 @@ export default function Dashboard() {
   const playHistoryAbortRef = useRef<AbortController | null>(null);
   const [historyAudioUrl, setHistoryAudioUrl] = useState<string | null>(null);
   const [playingHistoryId, setPlayingHistoryId] = useState<string | null>(null);
+  const [loadingHistoryId, setLoadingHistoryId] = useState<string | null>(null);
   const [downloadMenuId, setDownloadMenuId] = useState<string | null>(null);
   const downloadMenuRef = useRef<HTMLDivElement>(null);
   const [docsCopyFeedback, setDocsCopyFeedback] = useState("");
@@ -607,6 +608,7 @@ export default function Dashboard() {
     playHistoryAbortRef.current?.abort();
     playHistoryAbortRef.current = new AbortController();
     const signal = playHistoryAbortRef.current.signal;
+    setLoadingHistoryId(id);
     setTtsStatus("Fetching audio...");
     try {
       const res = await fetch(`/api/echo/history/${id}`, { signal });
@@ -626,6 +628,8 @@ export default function Dashboard() {
       if ((err as Error).name === "AbortError") return;
       console.error(err);
       setTtsStatus("Error playing history");
+    } finally {
+      setLoadingHistoryId(null);
     }
   };
 
@@ -680,6 +684,7 @@ export default function Dashboard() {
   const [playingCallLogId, setPlayingCallLogId] = useState<string | null>(null);
   const [callLogRecordingUrl, setCallLogRecordingUrl] = useState<string | null>(null);
   const [callLogPlaybackError, setCallLogPlaybackError] = useState<string | null>(null);
+  const [loadingCallLogId, setLoadingCallLogId] = useState<string | null>(null);
   const [expandedCallLogId, setExpandedCallLogId] = useState<string | null>(null);
   const [expandedCallTranscript, setExpandedCallTranscript] = useState<string | null>(null);
   const [isExpandedCallLoading, setIsExpandedCallLoading] = useState(false);
@@ -695,6 +700,7 @@ export default function Dashboard() {
       setCallLogRecordingUrl(null);
       return;
     }
+    setLoadingCallLogId(callId);
     try {
       const res = await fetch(`/api/orbit/calls/${callId}`, { cache: "no-store" });
       const data = await res.json();
@@ -708,6 +714,8 @@ export default function Dashboard() {
       setPlayingCallLogId(callId);
     } catch (err) {
       setCallLogPlaybackError(err instanceof Error ? err.message : "Could not load recording");
+    } finally {
+      setLoadingCallLogId(null);
     }
   }, [playingCallLogId]);
 
@@ -2008,12 +2016,17 @@ export default function Dashboard() {
                               <span className="call-log-play">
                                 <button
                                   type="button"
-                                  className={`action-btn ${playingCallLogId === c.id ? "text-lime" : ""}`}
+                                  className={`action-btn call-log-play-btn ${playingCallLogId === c.id ? "playing" : ""} ${loadingCallLogId === c.id ? "loading" : ""}`}
                                   onClick={() => handlePlayCallLog(c.id)}
+                                  disabled={loadingCallLogId === c.id}
                                   title="Play recording"
                                   aria-label="Play recording"
                                 >
-                                  <Play size={16} fill={playingCallLogId === c.id ? "currentColor" : undefined} />
+                                  {loadingCallLogId === c.id ? (
+                                    <Loader2 size={16} className="animate-spin" />
+                                  ) : (
+                                    <Play size={16} fill="currentColor" stroke="currentColor" />
+                                  )}
                                 </button>
                               </span>
                             </div>
@@ -2074,15 +2087,18 @@ export default function Dashboard() {
                       history.slice(0, 50).map((h) => (
                         <div key={h.id} className="history-card">
                           <button
-                            className={`history-play-btn ${playingHistoryId === h.id ? "playing" : ""}`}
+                            className={`history-play-btn ${playingHistoryId === h.id ? "playing" : ""} ${loadingHistoryId === h.id ? "loading" : ""}`}
                             onClick={() => handlePlayHistory(h.id)}
+                            disabled={loadingHistoryId === h.id}
                             title="Play"
                             aria-label="Play"
                           >
-                            {playingHistoryId === h.id ? (
+                            {loadingHistoryId === h.id ? (
+                              <Loader2 size={24} className="animate-spin text-inherit" />
+                            ) : playingHistoryId === h.id ? (
                               <Volume2 size={26} className="text-inherit" />
                             ) : (
-                              <Play size={26} fill="currentColor" className="text-lime" />
+                              <Play size={26} fill="currentColor" stroke="currentColor" className="history-play-icon" />
                             )}
                           </button>
                           <div className="history-card-body">

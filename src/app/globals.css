@@ -808,6 +808,20 @@ audio::-webkit-media-controls-time-remaining-display {
   padding: 0 8px;
   flex-shrink: 0;
 }
+.call-log-play-btn {
+  color: var(--lime);
+}
+.call-log-play-btn:hover:not(:disabled) {
+  color: var(--lime);
+  border-color: var(--lime);
+  background: var(--limeDim);
+}
+.call-log-play-btn.playing {
+  color: var(--lime);
+}
+.call-log-play-btn.loading {
+  cursor: wait;
+}
 .call-log-expand {
   display: flex;
   align-items: center;
@@ -1497,13 +1511,26 @@ audio::-webkit-media-controls-time-remaining-display {
   cursor: pointer;
   transition: all 0.2s;
 }
-.history-play-btn:hover {
+.history-play-btn:hover:not(:disabled) {
   background: var(--lime);
   color: var(--bg);
   transform: scale(1.05);
 }
 .history-play-btn.playing {
   background: var(--lime);
+  color: var(--bg);
+}
+.history-play-btn.loading {
+  cursor: wait;
+}
+.history-play-btn .history-play-icon {
+  color: var(--lime);
+  opacity: 1;
+}
+.history-play-btn:hover:not(:disabled) .history-play-icon {
+  color: var(--bg);
+}
+.history-play-btn.playing .history-play-icon {
   color: var(--bg);
 }
 

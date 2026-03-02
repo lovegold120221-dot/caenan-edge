@@ -1734,14 +1734,38 @@ export default function Dashboard() {
                 <button type="button" className={`audio-sub-tab ${audioSubTab === "history" ? "active" : ""}`} onClick={() => setAudioSubTab("history")}>History</button>
               </div>
               {audioSubTab === "voices" && (() => {
-                // Derive unique categories and languages from voice data
-                const allCategories = [...new Set(voices.map(v => v.category || "unknown"))].sort();
-                const allLanguages = [...new Set(voices.map(v => v.labels?.language || "Unknown").filter(Boolean))].sort();
+                // cspell:ignore premade
+                // Inner voice sub-tabs
+                const voiceViewTabs = ["explore", "my-voices", "default"] as const;
+                type VoiceView = typeof voiceViewTabs[number];
+                const voiceViewLabels: Record<VoiceView, string> = { explore: "Explore", "my-voices": "My Voices", default: "Default Voices" };
 
-                // Filter voices based on active filters
-                const filtered = voices.filter(v => {
-                  if (voiceFilterCategory !== "all" && (v.category || "unknown") !== voiceFilterCategory) return false;
-                  if (voiceFilterLanguage !== "all" && (v.labels?.language || "Unknown") !== voiceFilterLanguage) return false;
+                // Derive use-case chips from voice labels
+                const useCaseSet = new Set<string>();
+                voices.forEach(v => { if (v.labels?.use_case) useCaseSet.add(v.labels.use_case); });
+                const useCaseChips = [...useCaseSet].sort();
+
+                // Derive unique languages
+                const allLanguages = [...new Set(voices.map(v => v.labels?.language || "").filter(Boolean))].sort();
+
+                // Determine which view is active (reuse voiceFilterCategory as the inner tab state)
+                const activeView: VoiceView = (voiceFilterCategory === "my-voices" || voiceFilterCategory === "default") ? voiceFilterCategory as VoiceView : "explore";
+
+                // Filter by inner tab
+                let tabFiltered = voices;
+                if (activeView === "my-voices") {
+                  tabFiltered = voices.filter(v => v.category === "cloned" || v.category === "generated");
+                } else if (activeView === "default") {
+                  tabFiltered = voices.filter(v => v.category !== "cloned" && v.category !== "generated");
+                }
+
+                // Filter by use-case chip (stored in voiceFilterLanguage as overloaded state)
+                const activeUseCase = voiceFilterLanguage !== "all" && !allLanguages.includes(voiceFilterLanguage) ? voiceFilterLanguage : null;
+                const activeLanguageFilter = voiceFilterLanguage !== "all" && allLanguages.includes(voiceFilterLanguage) ? voiceFilterLanguage : null;
+
+                const filtered = tabFiltered.filter(v => {
+                  if (activeUseCase && (v.labels?.use_case || "") !== activeUseCase) return false;
+                  if (activeLanguageFilter && (v.labels?.language || "") !== activeLanguageFilter) return false;
                   if (voiceSearchQuery) {
                     const q = voiceSearchQuery.toLowerCase();
                     const matchesName = v.name.toLowerCase().includes(q);
@@ -1753,16 +1777,14 @@ export default function Dashboard() {
                   return true;
                 });
 
-                // Group filtered voices by category
+                // Group by category for display
                 const grouped: Record<string, Voice[]> = {};
                 for (const v of filtered) {
                   const cat = v.category || "unknown";
                   if (!grouped[cat]) grouped[cat] = [];
                   grouped[cat].push(v);
                 }
-
-                // Order: cloned first, then premade, then rest alphabetically
-                const categoryOrder = ["cloned", "premade", "generated", "professional"];
+                const categoryOrder = ["cloned", "generated", "premade", "professional"];
                 const sortedCats = Object.keys(grouped).sort((a, b) => {
                   const ai = categoryOrder.indexOf(a);
                   const bi = categoryOrder.indexOf(b);
@@ -1772,76 +1794,70 @@ export default function Dashboard() {
                   return a.localeCompare(b);
                 });
 
-                const categoryLabel = (cat: string) => {
-                  const labels: Record<string, string> = {
-                    cloned: "🎙️ Cloned Voices",
-                    premade: "🌍 Premade Voices",
-                    generated: "✨ Generated Voices",
-                    professional: "💼 Professional Voices",
-                  };
-                  return labels[cat] || `📁 ${cat.charAt(0).toUpperCase() + cat.slice(1)}`;
+                const sectionTitle = (cat: string) => {
+                  const m: Record<string, string> = { cloned: "My Cloned Voices", premade: "Library Voices", generated: "Generated Voices", professional: "Professional Voices" };
+                  return m[cat] || cat.charAt(0).toUpperCase() + cat.slice(1);
                 };
 
                 return (
-                <div className="tab-pane active">
-                  <div className="pane-header">
-                    <span className="pane-title">Voice Library</span>
-                    <span className="pane-meta">{filtered.length} of {voices.length} Voices</span>
+                <div className="tab-pane active vl-root">
+                  {/* Inner sub-tabs */}
+                  <div className="vl-tabs-row">
+                    <div className="vl-tabs">
+                      {voiceViewTabs.map(t => (
+                        <button key={t} type="button" className={`vl-tab ${activeView === t ? "active" : ""}`} onClick={() => { setVoiceFilterCategory(t === "explore" ? "all" : t); }}>
+                          {t === "explore" && <AudioWaveform size={14} />}
+                          {voiceViewLabels[t]}
+                        </button>
+                      ))}
+                    </div>
+                    <span className="pane-meta">{filtered.length} voices</span>
                   </div>
 
-                  {/* Filter Bar */}
-                  <div className="voice-filter-bar">
+                  {/* Search */}
+                  <div className="vl-search-row">
                     <input
                       type="text"
-                      className="voice-search-input"
-                      placeholder="Search voices by name, language, accent…"
+                      className="vl-search"
+                      placeholder="Search library voices…"
                       value={voiceSearchQuery}
-                      onChange={(e) => setVoiceSearchQuery(e.target.value)}
-                      title="Search voices"
+                      onChange={e => setVoiceSearchQuery(e.target.value)}
+                      title="Search"
                     />
-                    <select
-                      className="voice-filter-select"
-                      value={voiceFilterCategory}
-                      onChange={(e) => setVoiceFilterCategory(e.target.value)}
-                      title="Filter by category"
-                      aria-label="Filter by category"
-                    >
-                      <option value="all">All Categories</option>
-                      {allCategories.map(cat => (
-                        <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>
-                      ))}
-                    </select>
-                    <select
-                      className="voice-filter-select"
-                      value={voiceFilterLanguage}
-                      onChange={(e) => setVoiceFilterLanguage(e.target.value)}
-                      title="Filter by language"
-                      aria-label="Filter by language"
-                    >
-                      <option value="all">All Languages</option>
-                      {allLanguages.map(lang => (
-                        <option key={lang} value={lang}>{lang}</option>
-                      ))}
-                    </select>
-                    {(voiceFilterCategory !== "all" || voiceFilterLanguage !== "all" || voiceSearchQuery) && (
-                      <button
-                        type="button"
-                        className="voice-filter-clear"
-                        onClick={() => { setVoiceFilterCategory("all"); setVoiceFilterLanguage("all"); setVoiceSearchQuery(""); }}
-                      >
-                        <X size={14} /> Clear
+                  </div>
+
+                  {/* Use-case & language filter chips */}
+                  <div className="vl-chips-row">
+                    <button type="button" className={`vl-chip ${!activeLanguageFilter ? "" : "active"}`} onClick={() => setVoiceFilterLanguage(activeLanguageFilter ? "all" : allLanguages[0] || "all")}>
+                      🌐 Language
+                    </button>
+                    {useCaseChips.map(uc => (
+                      <button key={uc} type="button" className={`vl-chip ${activeUseCase === uc ? "active" : ""}`} onClick={() => setVoiceFilterLanguage(activeUseCase === uc ? "all" : uc)}>
+                        {uc}
+                      </button>
+                    ))}
+                    {(activeUseCase || activeLanguageFilter || voiceSearchQuery) && (
+                      <button type="button" className="vl-chip vl-chip-clear" onClick={() => { setVoiceFilterLanguage("all"); setVoiceSearchQuery(""); }}>
+                        <X size={12} /> Clear
                       </button>
                     )}
                   </div>
 
+                  {/* Language dropdown (conditionally shown) */}
+                  {activeLanguageFilter !== null && (
+                    <div className="vl-language-dropdown">
+                      <select className="voice-filter-select" value={activeLanguageFilter} onChange={e => setVoiceFilterLanguage(e.target.value)} aria-label="Language">
+                        {allLanguages.map(l => <option key={l} value={l}>{l}</option>)}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Audio visualizer */}
                   {currentAudio && (
                     <div className={`audio-visualizer audio-viz-${voicePreviewVizId.replace(/:/g, "")} mb-6`} aria-hidden>
                       <style>{`
                         ${Array.from({ length: 12 })
-                          .map(
-                            (_, i) =>
-                              `.audio-viz-${voicePreviewVizId.replace(/:/g, "")} .audio-bar:nth-child(${i + 2}) { --bar-height: ${8 + Math.min(92, voicePreviewVolume * (0.5 + 0.5 * Math.sin(i * 0.6)))}%; }`
-                          )
+                          .map((_, i) => `.audio-viz-${voicePreviewVizId.replace(/:/g, "")} .audio-bar:nth-child(${i + 2}) { --bar-height: ${8 + Math.min(92, voicePreviewVolume * (0.5 + 0.5 * Math.sin(i * 0.6)))}%; }`)
                           .join("\n")}
                       `}</style>
                       {Array.from({ length: 12 }).map((_, i) => (
@@ -1850,47 +1866,35 @@ export default function Dashboard() {
                     </div>
                   )}
 
+                  {/* Voice cards by category */}
                   {voices.length === 0 ? (
                     <div className="placeholder-pane h-32 voice-grid-placeholder">Loading voices…</div>
                   ) : filtered.length === 0 ? (
                     <div className="placeholder-pane h-32 voice-grid-placeholder">No voices match your filters.</div>
                   ) : (
                     sortedCats.map(cat => (
-                      <div key={cat} className="voice-category-section">
-                        <div className="voice-category-header">
-                          <span className="voice-category-title">{categoryLabel(cat)}</span>
-                          <span className="voice-category-count">{grouped[cat].length}</span>
+                      <div key={cat} className="vl-section">
+                        <div className="vl-section-header">
+                          <span className="vl-section-title">{sectionTitle(cat)}</span>
+                          <span className="vl-section-count">{grouped[cat].length}</span>
                         </div>
-                        <div className="voice-grid">
-                          {grouped[cat].map((v) => (
-                            <div key={v.voice_id} className="voice-card-modern">
-                              <div className="voice-card-header">
-                                <div className="voice-card-avatar">
-                                  <Volume2 size={18} className="text-lime" />
+                        <div className="vl-grid">
+                          {grouped[cat].map(v => (
+                            <div key={v.voice_id} className="vl-card">
+                              <div className="vl-card-avatar">
+                                <Volume2 size={16} />
+                              </div>
+                              <div className="vl-card-info">
+                                <div className="vl-card-name" title={v.name}>{v.name}</div>
+                                <div className="vl-card-category">{v.labels?.use_case || v.category || "General"}</div>
+                                <div className="vl-card-lang">
+                                  {v.labels?.language || v.labels?.accent || ""}
+                                  {v.labels?.accent && v.labels?.language ? ` · ${v.labels.accent}` : ""}
                                 </div>
-                                <div className="voice-card-meta">
-                                  <div className="voice-card-name">{v.name}</div>
-                                  <div className="voice-card-lang">{v.labels?.language || v.labels?.accent || "General"}</div>
-                                </div>
                               </div>
-                              <div className="voice-card-tags">
-                                {v.labels?.gender && <span className="voice-tag">{v.labels.gender}</span>}
-                                {v.labels?.accent && <span className="voice-tag">{v.labels.accent}</span>}
-                                {v.labels?.use_case && <span className="voice-tag">{v.labels.use_case}</span>}
-                                {v.labels?.age && <span className="voice-tag">{v.labels.age}</span>}
-                              </div>
-                              <div className="voice-card-preview">
-                                {v.preview_url ? (
-                                  <audio
-                                    src={v.preview_url}
-                                    controls
-                                    preload="metadata"
-                                    className="voice-preview-audio"
-                                  />
-                                ) : (
-                                  <span className="voice-no-preview text-faint text-2xs">No preview</span>
-                                )}
-                              </div>
+                              {v.preview_url && (
+                                <audio src={v.preview_url} controls preload="metadata" className="vl-card-audio" />
+                              )}
                             </div>
                           ))}
                         </div>
@@ -1901,112 +1905,109 @@ export default function Dashboard() {
                 );
               })()}
               {audioSubTab === "tts" && (
-                <div className="tab-pane active tts-pane-layout">
-              <div className="tts-top-section">
-              <div className="field">
-                <label htmlFor="ttsVoiceSelect">Select Voice</label>
-                <select
-                  id="ttsVoiceSelect"
-                  title="Select a voice for synthesis"
-                  value={selectedVoice}
-                  onChange={(e) => setSelectedVoice(e.target.value)}
-                >
-                  {voices.length === 0 ? (
-                    <option value="">Loading voices...</option>
-                  ) : (
-                    voices.map((v) => (
-                      <option key={v.voice_id} value={v.voice_id}>
-                        {v.name} {v.labels?.accent ? `(${v.labels.accent})` : ""}
-                      </option>
-                    ))
-                  )}
-                </select>
-              </div>
-              <div className="field flex-1">
-                <div className="flex flex-wrap justify-between items-center gap-2 mb-1">
-                  <label htmlFor="ttsText">Text to Synthesize</label>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      className="btn text-2xs"
-                      onClick={() => setTtsText(enhanceTextForTTS(ttsText))}
-                      title="Symbols only: @ → at, . → dot (emails, URLs)"
-                    >
-                      Enhance symbols
-                    </button>
-                    <button
-                      type="button"
-                      className="btn text-2xs text-lime border border-lime/50"
-                      onClick={() => setTtsText(normalizeForTTS(ttsText))}
-                      title="Normalize numbers, currency, phone, abbreviations for speech"
-                    >
-                      Normalize for TTS
-                    </button>
-                    <button
-                      type="button"
-                      className="btn text-2xs"
-                      onClick={() => setTtsText(ttsText + (ttsText.endsWith(" ") ? "" : " ") + BREAK_TAG)}
-                      title="Append [pause]"
-                    >
-                      Add pause
-                    </button>
-                    <button
-                      type="button"
-                      className="btn text-2xs"
-                      onClick={handleEnhanced}
-                      disabled={isEnhancingExpression || !ttsText.trim()}
-                      title="Add nuances for natural speech (no brackets)"
-                    >
-                      {isEnhancingExpression ? <Loader2 size={16} className="animate-spin" /> : "Enhanced"}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn text-2xs text-lime border border-lime/50"
-                      onClick={handleAddExpression}
-                      disabled={isEnhancingExpression || !ttsText.trim()}
-                      title="Use AI to add expressive tags"
-                    >
-                      Add expression
-                    </button>
+                <div className="tab-pane active el-tts-layout">
+                  {/* Left Pane: Text Editor */}
+                  <div className="el-tts-left">
+                    <div className="el-tts-editor-header">
+                      <div className="flex flex-wrap gap-2">
+                        <button type="button" className="btn text-2xs" onClick={() => setTtsText(enhanceTextForTTS(ttsText))} title="Symbols only: @ → at, . → dot (emails, URLs)">
+                          Enhance symbols
+                        </button>
+                        <button type="button" className="btn text-2xs text-lime border border-lime/50" onClick={() => setTtsText(normalizeForTTS(ttsText))} title="Normalize numbers, currency, phone, abbreviations for speech">
+                          Normalize for TTS
+                        </button>
+                        <button type="button" className="btn text-2xs" onClick={() => setTtsText(ttsText + (ttsText.endsWith(" ") ? "" : " ") + BREAK_TAG)} title="Append [pause]">
+                          Add pause
+                        </button>
+                        <button type="button" className="btn text-2xs" onClick={handleEnhanced} disabled={isEnhancingExpression || !ttsText.trim()} title="Add nuances for natural speech (no brackets)">
+                          {isEnhancingExpression ? <Loader2 size={16} className="animate-spin" /> : "Enhanced"}
+                        </button>
+                        <button type="button" className="btn text-2xs text-lime border border-lime/50" onClick={handleAddExpression} disabled={isEnhancingExpression || !ttsText.trim()} title="Use AI to add expressive tags">
+                          Add expression
+                        </button>
+                      </div>
+                    </div>
+                    <textarea
+                      id="ttsText"
+                      className="el-tts-textarea"
+                      placeholder="Enter text..."
+                      value={ttsText}
+                      onChange={(e) => setTtsText(e.target.value)}
+                    ></textarea>
+                    
+                    {/* Bottom controls integrated into left pane footer */}
+                    <div className="el-tts-footer">
+                      <div className="el-tts-status">
+                        <Loader2 size={14} className="text-muted" style={{ opacity: isGenerating ? 1 : 0 }} />
+                        <span className="text-xs text-muted">{ttsText.length} characters</span>
+                      </div>
+                      <div className="el-tts-actions">
+                        <button className="btn primary el-generate-btn" id="btnGenerateTTS" onClick={handleGenerateTTS} disabled={isGenerating}>
+                          {isGenerating ? <Loader2 size={16} className="animate-spin" /> : "Generate speech"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Pane: Settings */}
+                  <div className="el-tts-right">
+                    <div className="el-settings-tabs">
+                      <button className="el-settings-tab active">Settings</button>
+                      <button className="el-settings-tab">History</button>
+                    </div>
+
+                    <div className="el-settings-content">
+                      <div className="el-field-group">
+                        <label className="el-label">Voice</label>
+                        <select
+                          className="el-select"
+                          value={selectedVoice}
+                          onChange={(e) => setSelectedVoice(e.target.value)}
+                          title="Select a voice for synthesis"
+                          aria-label="Select Voice"
+                        >
+                          {voices.length === 0 ? (
+                            <option value="">Loading voices...</option>
+                          ) : (
+                            voices.map((v) => (
+                              <option key={v.voice_id} value={v.voice_id}>
+                                {v.name} {v.labels?.accent ? `(${v.labels.accent})` : ""}
+                              </option>
+                            ))
+                          )}
+                        </select>
+                      </div>
+
+                      <div className="el-field-group">
+                        <label className="el-label">Model</label>
+                        <div className="el-select-fake">⚡ Eleven Flash v2.5</div>
+                      </div>
+
+                      <div className="el-field-group mt-auto">
+                        <label className="el-label mb-2">Audio Preview</label>
+                        <audio id="ttsAudio" controls className="el-audio-player w-full" ref={audioRef}></audio>
+                      </div>
+
+                      {ttsStatus && ttsStatus.startsWith("Error") && (
+                        <div className="text-xs text-bad mt-4 p-3 border border-bad/30 rounded-lg bg-bad/5">
+                          {ttsStatus}
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        className="btn w-full justify-center mt-4"
+                        onClick={handleGenerateAgentTemplateFromTts}
+                        disabled={isAgentVoiceGenerating || !ttsText.trim()}
+                        title="Use this TTS prompt to generate the Create agent template"
+                      >
+                        {isAgentVoiceGenerating ? <Loader2 size={16} className="animate-spin" /> : <Users size={16} />}
+                        Generate Agent Template
+                      </button>
+
+                    </div>
                   </div>
                 </div>
-                <textarea
-                  id="ttsText"
-                  placeholder="Enter text..."
-                  value={ttsText}
-                  onChange={(e) => setTtsText(e.target.value)}
-                ></textarea>
-              </div>
-              <div className="flex gap-2.5 items-center">
-                <button
-                  className="btn primary"
-                  id="btnGenerateTTS"
-                  onClick={handleGenerateTTS}
-                  disabled={isGenerating}
-                >
-                  {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} fill="currentColor" />}
-                  Generate Speech
-                </button>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={handleGenerateAgentTemplateFromTts}
-                  disabled={isAgentVoiceGenerating || !ttsText.trim()}
-                  title="Use this TTS prompt to generate the Create agent template"
-                >
-                  {isAgentVoiceGenerating ? <Loader2 size={16} className="animate-spin" /> : <Users size={16} />}
-                  Generate Agent Template
-                </button>
-                {ttsStatus && ttsStatus.startsWith("Error") && (
-                  <span id="ttsStatus" className="text-xs text-bad">{ttsStatus}</span>
-                )}
-              </div>
-              </div>
-              <div className="tts-audio-bottom">
-                <label className="mb-2 block">Audio</label>
-                <audio id="ttsAudio" controls className="w-full" ref={audioRef}></audio>
-              </div>
-            </div>
               )}
               {audioSubTab === "history" && (
                 <div className="tab-pane active tab-pane-full-height">

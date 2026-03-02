@@ -2,16 +2,11 @@
 
 import { useState, useEffect } from "react";
 import {
-  Phone,
   Copy,
   AudioWaveform,
   Mic,
-  Volume2,
-  Users,
   PhoneCall,
   Zap,
-  BookOpen,
-  Terminal,
   Key,
   Play,
 } from "lucide-react";
@@ -323,181 +318,150 @@ export default function DocsPane({
       </nav>
 
       {docTab === "documentation" && (
-        <div className="docs-doc-content">
-          <header className="docs-hero">
-            <h1 className="docs-hero-title">Voice AI Platform</h1>
-            <p className="docs-hero-subtitle">
-              Build voice experiences with Text-to-Speech, Speech-to-Text, Clone, and AI-powered phone agents.
-            </p>
-          </header>
+        <div className="docs-content max-w-5xl mx-auto py-12 px-6 el-agents-landing">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-faint font-medium tracking-wide">Get started</span>
+            <div className="hidden md:block text-sm text-faint">On this page</div>
+          </div>
+          
+          <div className="flex flex-col md:flex-row gap-12">
+            {/* Main Content */}
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-6">
+                <h1 className="text-4xl font-bold text-white tracking-tight">Eburon Agents</h1>
+                <button className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-white/5 border border-white/10 text-sm text-faint hover:text-white hover:bg-white/10 transition-colors">
+                  <Copy size={14} /> Copy page
+                </button>
+              </div>
 
-          <section className="docs-section">
-            <h2 className="docs-section-title">Key Capabilities</h2>
-            <div className="docs-card-grid docs-card-grid-3">
-              <div className="docs-card">
-                <div className="docs-card-icon">
-                  <AudioWaveform size={20} className="text-lime" />
-                </div>
-                <h3 className="docs-card-title">Text-to-Speech</h3>
-                <p className="docs-card-desc">Generate lifelike speech from text with multiple voices and models.</p>
-              </div>
-              <div className="docs-card">
-                <div className="docs-card-icon">
-                  <Mic size={20} className="text-lime" />
-                </div>
-                <h3 className="docs-card-title">Speech-to-Text</h3>
-                <p className="docs-card-desc">Transcribe audio to text with high accuracy.</p>
-              </div>
-              <div className="docs-card">
-                <div className="docs-card-icon">
-                  <Volume2 size={20} className="text-lime" />
-                </div>
-                <h3 className="docs-card-title">Clone</h3>
-                <p className="docs-card-desc">Create custom voices from samples.</p>
-              </div>
-              <div className="docs-card">
-                <div className="docs-card-icon">
-                  <Users size={20} className="text-lime" />
-                </div>
-                <h3 className="docs-card-title">AI Agents</h3>
-                <p className="docs-card-desc">Create and deploy voice AI assistants.</p>
-              </div>
-              <div className="docs-card">
-                <div className="docs-card-icon">
-                  <PhoneCall size={20} className="text-lime" />
-                </div>
-                <h3 className="docs-card-title">Phone Integration</h3>
-                <p className="docs-card-desc">Inbound and outbound phone calls.</p>
-              </div>
-              <div className="docs-card">
-                <div className="docs-card-icon">
-                  <Zap size={20} className="text-lime" />
-                </div>
-                <h3 className="docs-card-title">Real-time</h3>
-                <p className="docs-card-desc">Sub-600ms response times with live transcription.</p>
-              </div>
-            </div>
-          </section>
+              <p className="text-lg text-muted mb-8 max-w-2xl leading-relaxed">
+                Learn how to build, launch, and scale agents with EchoLabs.
+              </p>
 
-          <section className="docs-section">
-            <h2 className="docs-section-title">Test Inbound Call</h2>
-            <p className="docs-section-desc">Dial this number from your phone to test the configured inbound line.</p>
-            <div className="docs-call-card">
-              <div className="docs-call-card-inner">
-                <Phone size={20} className="text-lime docs-call-icon" />
-                <div className="docs-call-number">{INBOUND_CALL_NUMBER}</div>
-                <div className="docs-call-actions">
-                  <a href={`tel:${normalizedInboundCallNumber}`} className="btn primary docs-call-btn">
-                    <Phone size={16} />
-                    Call now
-                  </a>
-                  <button
-                    type="button"
-                    className="btn docs-call-btn"
-                    onClick={() => copyToClipboard(normalizedInboundCallNumber)}
-                  >
-                    <Copy size={16} strokeWidth={2.25} />
-                    Copy number
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
+              <p className="text-base text-faint mb-12 max-w-3xl leading-relaxed">
+                Agents accomplish tasks through natural dialogue - from quick requests to complex, open-ended workflows. 
+                EchoLabs provides voice-rich, expressive models, developer tools for building multimodal agents, and tools to monitor and evaluate agent performance at scale.
+              </p>
 
-          <section className="docs-section">
-            <h2 className="docs-section-title">Quick Start</h2>
-            <p className="docs-section-desc">
-              Base URL: <code className="docs-inline-code">{apiBaseUrl}</code>
-            </p>
-            <div className="docs-quick-start">
-              <div className="docs-quick-step">
-                <span className="docs-quick-num">1</span>
-                <div>
-                  <strong>Configure environment</strong> — Set your provider keys in .env (see Configuration below)
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-16">
+                {/* Card 1 */}
+                <div className="el-feature-card bg-surface border border-stroke rounded-xl overflow-hidden hover:border-lime/50 transition-colors">
+                  <div className="bg-linear-to-br from-blue-300 to-blue-600 flex items-center justify-center overflow-hidden h-44 relative">
+                     {/* Simplified representation of the node graph UI from the screenshot */}
+                     <div className="w-full flex items-center justify-center p-4">
+                       <div className="bg-white/90 w-full h-full rounded-md shadow-lg p-3 border border-white/20 relative min-h-[100px]">
+                         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-20 h-8 bg-white border border-gray-200 rounded-sm shadow-sm flex items-center justify-center text-[9px] text-gray-500 font-medium">Start</div>
+                         <div className="absolute bottom-1/4 left-4 w-20 h-8 bg-white border border-gray-200 rounded-sm shadow-sm flex items-center justify-center text-[9px] text-gray-500 font-medium">Handoff</div>
+                         <div className="absolute bottom-1/4 right-4 w-20 h-8 bg-white border border-gray-200 rounded-sm shadow-sm flex items-center justify-center text-[9px] text-gray-500 font-medium">Summarize</div>
+                       </div>
+                     </div>
+                  </div>
+                  <div className="p-6">
+                    <h3 className="text-lg font-semibold text-white mb-2">Configure</h3>
+                    <p className="text-sm text-faint leading-relaxed">
+                      Configure multimodal agents with our developer toolkit, dashboard, or visual workflow builder
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <div className="docs-quick-step">
-                <span className="docs-quick-num">2</span>
-                <div>
-                  <strong>Generate speech</strong> — POST to <code className="docs-inline-code">/echo/tts</code> with voiceId, text, modelId
-                </div>
-              </div>
-              <div className="docs-quick-step">
-                <span className="docs-quick-num">3</span>
-                <div>
-                  <strong>Create agents</strong> — Use the dashboard or API, then place calls via <code className="docs-inline-code">/orbit/call</code>
-                </div>
-              </div>
-            </div>
-          </section>
 
-          <section className="docs-section">
-            <h2 className="docs-section-title">Popular Use Cases</h2>
-            <div className="docs-card-grid docs-card-grid-2">
-              <div className="docs-card docs-card-compact">
-                <BookOpen size={20} className="text-lime" />
-                <div>
-                  <h3 className="docs-card-title">Customer Support</h3>
-                  <p className="docs-card-desc">Automate inbound support with agents that escalate when needed.</p>
+                {/* Card 2 */}
+                <div className="el-feature-card bg-surface border border-stroke rounded-xl overflow-hidden hover:border-lime/50 transition-colors">
+                  <div className="bg-linear-to-br from-blue-400 to-blue-800 flex items-center justify-center overflow-hidden h-44 p-6">
+                     {/* Simplified representation of the chat UI from the screenshot */}
+                     <div className="w-full h-full bg-white/95 rounded-lg shadow-lg flex flex-col p-3 gap-2 overflow-hidden">
+                       <div className="self-start bg-gray-100 rounded-lg p-2 max-w-[80%] text-[8px] text-gray-600 leading-tight">Hi there, welcome to the EchoLabs documentation. How can I help you?</div>
+                       <div className="self-end bg-black text-white rounded-lg p-2 max-w-[80%] text-[8px] leading-tight">I&apos;m wondering how EchoLabs pricing compares to Acme Co...</div>
+                     </div>
+                  </div>
+                  <div className="p-6">
+                    <h3 className="text-lg font-semibold text-white mb-2">Deploy</h3>
+                    <p className="text-sm text-faint leading-relaxed">
+                      Integrate multimodal agents across telephony systems, web, and mobile
+                    </p>
+                  </div>
+                </div>
+
+                {/* Card 3 */}
+                <div className="el-feature-card bg-surface border border-stroke rounded-xl overflow-hidden hover:border-lime/50 transition-colors">
+                  <div className="bg-linear-to-br from-blue-500 via-purple-400 to-orange-300 flex items-center justify-center overflow-hidden h-44">
+                     <div className="flex items-end gap-1.5 h-16 pointer-events-none">
+                       <div className="w-3 bg-white rounded-t-sm h-8 opacity-90 shadow-sm animate-pulse"></div>
+                       <div className="w-3 bg-white rounded-t-sm h-14 opacity-90 shadow-sm animate-pulse [animation-delay:200ms]"></div>
+                       <div className="w-3 bg-white rounded-t-sm h-10 opacity-90 shadow-sm animate-pulse [animation-delay:400ms]"></div>
+                     </div>
+                  </div>
+                  <div className="p-6">
+                    <h3 className="text-lg font-semibold text-white mb-2">Monitor</h3>
+                    <p className="text-sm text-faint leading-relaxed">
+                      Evaluate agent performance with built-in testing, evals, and analytics
+                    </p>
+                  </div>
                 </div>
               </div>
-              <div className="docs-card docs-card-compact">
-                <PhoneCall size={20} className="text-lime" />
-                <div>
-                  <h3 className="docs-card-title">Sales & Lead Qualification</h3>
-                  <p className="docs-card-desc">Make outbound calls, qualify leads, and schedule appointments.</p>
-                </div>
-              </div>
-              <div className="docs-card docs-card-compact">
-                <Terminal size={20} className="text-lime" />
-                <div>
-                  <h3 className="docs-card-title">IVR & Routing</h3>
-                  <p className="docs-card-desc">Replace traditional IVR with natural language routing.</p>
-                </div>
-              </div>
-              <div className="docs-card docs-card-compact">
-                <Volume2 size={20} className="text-lime" />
-                <div>
-                  <h3 className="docs-card-title">Voice Content</h3>
-                  <p className="docs-card-desc">Generate audiobooks, podcasts, and localized content.</p>
+
+              <div id="capabilities">
+                <h2 className="text-2xl font-bold text-white mb-6">Platform capabilities</h2>
+                <div className="space-y-4">
+                  <div className="bg-surface/50 border border-stroke rounded-xl p-6">
+                    <h3 className="text-lg font-semibold text-white mb-2 flex items-center gap-2"><Zap size={18} className="text-lime" /> Design and configure</h3>
+                    <p className="text-sm text-muted mb-4">Build voice agent logic with our powerful capabilities including Speech-to-Text and dynamic Text-to-Speech synthesis.</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="flex gap-3 items-start">
+                        <AudioWaveform size={16} className="text-faint mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-ink">Text-to-Speech</p>
+                          <p className="text-xs text-faint">Lifelike speech generation</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-3 items-start">
+                        <Mic size={16} className="text-faint mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-ink">Speech-to-Text</p>
+                          <p className="text-xs text-faint">High-accuracy audio transcription</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-surface/50 border border-stroke rounded-xl p-6">
+                    <h3 className="text-lg font-semibold text-white mb-2 flex items-center gap-2"><PhoneCall size={18} className="text-lime" /> Connect and deploy</h3>
+                    <p className="text-sm text-muted mb-4">Connect agents seamlessly to web RTC endpoints or traditional PSTN phone numbers via Twilio.</p>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex justify-between items-center bg-black/30 p-3 rounded border border-white/5">
+                        <span className="text-sm text-faint">Test Inbound Line:</span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-mono text-lime font-medium">{INBOUND_CALL_NUMBER}</span>
+                          <button onClick={() => copyToClipboard(normalizedInboundCallNumber)} className="text-faint hover:text-white transition-colors" title="Copy Number"><Copy size={14} /></button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-surface/50 border border-stroke rounded-xl p-6">
+                    <h3 className="text-lg font-semibold text-white mb-2 flex items-center gap-2"><Key size={18} className="text-lime" /> Monitor and optimize</h3>
+                    <p className="text-sm text-muted mb-4">Configure your workspace appropriately with the correct API keys for smooth operation.</p>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                       <div className="text-xs font-mono text-faint bg-black/20 p-2 rounded">TTS_PROVIDER_KEY</div>
+                       <div className="text-xs font-mono text-faint bg-black/20 p-2 rounded">TWILIO_ACCOUNT_SID</div>
+                       <div className="text-xs font-mono text-faint bg-black/20 p-2 rounded">ORBIT_SECRET</div>
+                       <div className="text-xs font-mono text-faint bg-black/20 p-2 rounded">PHONE_NUMBER_ID</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </section>
-
-          <section className="docs-section docs-section-last">
-            <h2 className="docs-section-title">Configuration</h2>
-            <div className="docs-config-grid">
-              <div className="docs-config-item">
-                <Key size={16} className="text-lime" />
-                <div>
-                  <code className="docs-inline-code">TTS_PROVIDER_KEY</code>
-                  <p className="docs-config-desc">TTS/STT provider API key</p>
-                </div>
-              </div>
-              <div className="docs-config-item">
-                <Key size={16} className="text-lime" />
-                <div>
-                  <code className="docs-inline-code">ORBIT_SECRET</code>
-                  <p className="docs-config-desc">API key for voice agents and calls</p>
-                </div>
-              </div>
-              <div className="docs-config-item">
-                <Key size={16} className="text-lime" />
-                <div>
-                  <code className="docs-inline-code">PHONE_NUMBER_ID</code>
-                  <p className="docs-config-desc">Phone number ID for outbound calls</p>
-                </div>
-              </div>
-              <div className="docs-config-item">
-                <Key size={16} className="text-lime" />
-                <div>
-                  <code className="docs-inline-code">NEXT_PUBLIC_ORBIT_TOKEN</code>
-                  <p className="docs-config-desc">Client-side public key for web calls</p>
-                </div>
-              </div>
+            
+            {/* Right Sidebar (Table of Contents) */}
+            <div className="hidden md:block w-48 shrink-0">
+               <div className="sticky top-8 border-l border-white/10 pl-4 py-1 flex flex-col gap-3">
+                 <a href="#capabilities" className="text-sm text-white font-medium hover:text-lime transition-colors">Platform capabilities</a>
+                 <a href="#capabilities" className="text-sm text-faint hover:text-white transition-colors pl-2 border-l border-white/20 -ml-4">Design and configure</a>
+                 <a href="#capabilities" className="text-sm text-faint hover:text-white transition-colors pl-2 border-l border-white/20 -ml-4">Connect and deploy</a>
+                 <a href="#capabilities" className="text-sm text-faint hover:text-white transition-colors pl-2 border-l border-white/20 -ml-4">Monitor and optimize</a>
+                 <a href="#architecture" className="text-sm text-faint hover:text-white transition-colors pt-2 block border-l-transparent -ml-4 pl-4 border-l hover:border-white/20">Architecture</a>
+               </div>
             </div>
-          </section>
+          </div>
         </div>
       )}
 

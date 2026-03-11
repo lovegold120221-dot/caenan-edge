@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { TTS_AUDIO_TAGS_SYSTEM_PROMPT, TTS_ENHANCE_NO_TAGS_SYSTEM_PROMPT } from '@/lib/tts-audio-tags-prompt';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite-preview';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 export async function POST(req: Request) {

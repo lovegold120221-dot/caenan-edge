@@ -186,9 +186,9 @@ export function enhanceTextForTTS(text: string): string {
     } else if (c === "@") {
       out += " at ";
     } else if (/[-/#*_]/.test(c)) {
-      const prevAlnum = i > 0 && /[a-zA-Z0-9]/.test(text[i - 1]);
-      const nextAlnum = i + 1 < len && /[a-zA-Z0-9]/.test(text[i + 1]);
-      out += prevAlnum || nextAlnum ? spokenChar(c) : c;
+      const prevIsAlnum = i > 0 && /[a-zA-Z0-9]/.test(text[i - 1]);
+      const nextIsAlnum = i + 1 < len && /[a-zA-Z0-9]/.test(text[i + 1]);
+      out += prevIsAlnum || nextIsAlnum ? spokenChar(c) : c;
     } else {
       out += c;
     }

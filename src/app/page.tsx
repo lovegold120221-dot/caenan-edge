@@ -71,6 +71,8 @@ const ECHO_MODEL_OPTIONS = [
   { id: "tts/echo_turbo-v2.5", label: "🚀 Echo Turbo v2.5" },
 ] as const;
 const DEFAULT_ECHO_MODEL = ECHO_MODEL_OPTIONS[0].id;
+const WEB_CALL_RING_SRC = "/audio/web-call-ring.mp3";
+const WEB_CALL_PICKUP_DELAY_MS = 2200;
 
 function getTtsEnhanceErrorMessage(err: unknown) {
   const message = err instanceof Error ? err.message : "Could not enhance.";
@@ -185,6 +187,8 @@ export default function Dashboard() {
   const [newApiKeyName, setNewApiKeyName] = useState("Default key");
   const [newlyCreatedApiKey, setNewlyCreatedApiKey] = useState("");
   const [apiUsageSummary, setApiUsageSummary] = useState<ApiUsageSummary | null>(null);
+  const webCallRingAudioRef = useRef<HTMLAudioElement | null>(null);
+  const pendingWebCallStartRef = useRef<symbol | null>(null);
 
   // Initialize OrbitCore inside the component for better React integration
   const orbit = useMemo(() => {
@@ -222,6 +226,40 @@ export default function Dashboard() {
     el.play().catch(() => {});
   }, [historyAudioUrl, playingHistoryId]);
 
+  const stopWebCallRing = useCallback(() => {
+    const audio = webCallRingAudioRef.current;
+    if (!audio) return;
+    audio.pause();
+    audio.currentTime = 0;
+  }, []);
+
+  const resetWebCallUi = useCallback(() => {
+    pendingWebCallStartRef.current = null;
+    stopWebCallRing();
+    setCallStatus("idle");
+    setActiveAgentId("");
+    setTranscript([]);
+    setLiveInterimTranscript({ user: "", agent: "" });
+    setShowTestCallModal(false);
+  }, [stopWebCallRing]);
+
+  const startWebCallRing = useCallback(async () => {
+    if (typeof window === "undefined") return;
+    const audio = webCallRingAudioRef.current ?? new Audio(WEB_CALL_RING_SRC);
+    if (!webCallRingAudioRef.current) {
+      audio.preload = "auto";
+      audio.loop = true;
+      audio.volume = 0.9;
+      webCallRingAudioRef.current = audio;
+    }
+    audio.currentTime = 0;
+    try {
+      await audio.play();
+    } catch (error) {
+      console.warn("Web call ring could not start:", error);
+    }
+  }, []);
+
   const [models, setModels] = useState<{ model_id: string; name: string; languages: { language_id: string; name: string }[] }[]>([]);
 
   useEffect(() => {
@@ -234,21 +272,17 @@ export default function Dashboard() {
     if (!orbit) return;
 
     const onCallStart = () => {
+      pendingWebCallStartRef.current = null;
+      stopWebCallRing();
       setCallStatus("active");
       setLiveInterimTranscript({ user: "", agent: "" });
     };
     const onCallEnd = () => {
-      setCallStatus("idle");
-      setActiveAgentId("");
-      setTranscript([]);
-      setLiveInterimTranscript({ user: "", agent: "" });
-      setShowTestCallModal(false);
+      resetWebCallUi();
     };
     const onError = (e: unknown) => {
       console.error("Orbit Error:", e);
-      setCallStatus("idle");
-      setLiveInterimTranscript({ user: "", agent: "" });
-      setShowTestCallModal(false);
+      resetWebCallUi();
     };
     const onMessage = (message: { type: string; transcriptType?: string; transcript?: string; role?: string }) => {
       if (message.type === "transcript" && message.transcript && message.role) {
@@ -285,7 +319,14 @@ export default function Dashboard() {
       orbit.off("message", onMessage);
       orbit.off("volume-level", onVolumeLevel);
     };
-  }, [orbit]);
+  }, [orbit, resetWebCallUi, stopWebCallRing]);
+
+  useEffect(() => {
+    return () => {
+      pendingWebCallStartRef.current = null;
+      stopWebCallRing();
+    };
+  }, [stopWebCallRing]);
 
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -439,6 +480,8 @@ export default function Dashboard() {
     }
 
     if (callStatus === "active") {
+      pendingWebCallStartRef.current = null;
+      stopWebCallRing();
       orbit.stop();
       return;
     }
@@ -457,13 +500,16 @@ export default function Dashboard() {
     setCallStatus("loading");
 
     try {
+      const startToken = Symbol("web-call-start");
+      pendingWebCallStartRef.current = startToken;
+      await startWebCallRing();
+      await new Promise((resolve) => window.setTimeout(resolve, WEB_CALL_PICKUP_DELAY_MS));
+      if (pendingWebCallStartRef.current !== startToken) return;
       console.log("Starting web call for assistant:", idToUse);
       await orbit.start(idToUse);
     } catch (err) {
       console.error("Failed to start web call:", err);
-      setCallStatus("idle");
-      setActiveAgentId("");
-      setShowTestCallModal(false);
+      resetWebCallUi();
       alert("Failed to connect to voice engine. Please check your internet connection or agent ID.");
     }
   };
@@ -3257,7 +3303,7 @@ export default function Dashboard() {
             <div className="orb-container">
               <div className={`orb active ${isSpeaking ? "speaking" : ""}`}></div>
               {callStatus === "loading" && (
-                <div className="text-muted text-sm">Connecting...</div>
+                <div className="text-muted text-sm">Ringing...</div>
               )}
               {callStatus === "active" && (
                 <>
@@ -3315,8 +3361,14 @@ export default function Dashboard() {
               <button
                 className="btn danger px-8 py-4 rounded-full"
                 onClick={() => {
-                  orbit?.stop();
-                  setShowTestCallModal(false);
+                  if (callStatus === "active") {
+                    pendingWebCallStartRef.current = null;
+                    stopWebCallRing();
+                    orbit?.stop();
+                    setShowTestCallModal(false);
+                  } else {
+                    resetWebCallUi();
+                  }
                 }}
               >
                 <PhoneOff size={20} /> End call

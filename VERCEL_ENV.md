@@ -5,7 +5,7 @@ Copy these **exact** variable names into your Vercel project (Settings → Envir
 ## Required
 
 | Variable | Description |
-|----------|-------------|
+| --------- | ----------- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL (e.g. `https://xxx.supabase.co`) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key |
 | `NEXT_PUBLIC_ORBIT_TOKEN` | Orbit public API key (client-side web calls) |
@@ -16,7 +16,7 @@ Copy these **exact** variable names into your Vercel project (Settings → Envir
 ## Optional (TTS provider aliases)
 
 | Variable | Description |
-|----------|-------------|
+| --------- | ----------- |
 | `ECHO_PROVIDER_KEY` | Alternative to `TTS_PROVIDER_KEY` |
 | `ELEVENLABS_API_KEY` | Alternative to `TTS_PROVIDER_KEY` |
 | `ECHO_PROVIDER_BASE_URL` | Override TTS API base URL (default: ElevenLabs) |
@@ -24,7 +24,7 @@ Copy these **exact** variable names into your Vercel project (Settings → Envir
 ## Optional (LiveKit for web calls)
 
 | Variable | Description |
-|----------|-------------|
+| --------- | ----------- |
 | `LIVEKIT_URL` | LiveKit WebSocket URL |
 | `LIVEKIT_API_KEY` | LiveKit API key |
 | `LIVEKIT_API_SECRET` | LiveKit API secret |
@@ -32,7 +32,7 @@ Copy these **exact** variable names into your Vercel project (Settings → Envir
 ## Optional (Expression enhancer)
 
 | Variable | Description |
-|----------|-------------|
+| --------- | ----------- |
 | `OLLAMA_BASE_URL` | Ollama server URL (e.g. `http://localhost:11434`) |
 | `OLLAMA_MODEL` | Ollama model name |
 | `OLLAMA_TIMEOUT_SECONDS` | Timeout for Ollama requests |
@@ -42,7 +42,7 @@ Copy these **exact** variable names into your Vercel project (Settings → Envir
 ## Optional (agents)
 
 | Variable | Description |
-|----------|-------------|
+| --------- | ----------- |
 | `ORBIT_SECRET` | Alternative to `VAPI_PRIVATE_API_KEY` |
 | `PHONE_NUMBER_ID` | Alternative to `VAPI_PHONE_NUMBER_ID` |
 | `NEXT_PUBLIC_VAPI_ASSISTANT_IVAN_ID` | Default assistant ID for Create My Agent |
@@ -51,7 +51,7 @@ Copy these **exact** variable names into your Vercel project (Settings → Envir
 
 **Copy-paste list (names only):**
 
-```
+```bash
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
 NEXT_PUBLIC_ORBIT_TOKEN

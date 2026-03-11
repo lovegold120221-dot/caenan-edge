@@ -87,8 +87,8 @@
     "id": "llm/codemax_gemini-3.1-flash-lite-preview",
     "capability": "llm",
     "alias": "codemax",
-    "family": "gemini-3.1-flash-lite",
-    "version": "preview",
+    "family": "gemini-3.1-flash-lite-preview",
+    "version": "latest",
     "upstream": {
       "vendor": "GOOGLE",
       "model": "gemini-3.1-flash-lite-preview"

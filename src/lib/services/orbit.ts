@@ -105,8 +105,16 @@ export async function fetchAssistants() {
   return [];
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 export async function createAgent(payload: unknown) {
-  return orbitCoreRequest('POST', '/assistant', payload);
+  return orbitCoreRequest(
+    'POST',
+    '/assistant',
+    isRecord(payload) ? normalizeAssistantPayloadForWebCall(payload) : payload
+  );
 }
 
 type AssistantMessage = { role: string; content: string };
@@ -139,6 +147,11 @@ type AssistantTranscriberConfig = {
       language: string;
     }>;
   };
+};
+
+type AssistantWebCallConfig = {
+  clientMessages: string[];
+  serverMessages: string[];
 };
 
 const DEFAULT_ASSISTANT_VOICE: AssistantVoiceConfig = {
@@ -178,6 +191,36 @@ const GREGORY_TRANSCRIBER_TEMPLATE = {
   confidenceThreshold: 0.4,
 };
 
+const DEFAULT_ASSISTANT_CLIENT_MESSAGES = [
+  'conversation-update',
+  'function-call',
+  'hang',
+  'model-output',
+  'speech-update',
+  'status-update',
+  'transfer-update',
+  'transcript',
+  'tool-calls',
+  'user-interrupted',
+  'voice-input',
+  'workflow.node.started',
+  'assistant.started',
+] as const;
+
+const DEFAULT_ASSISTANT_SERVER_MESSAGES = [
+  'conversation-update',
+  'end-of-call-report',
+  'function-call',
+  'hang',
+  'speech-update',
+  'status-update',
+  'tool-calls',
+  'transfer-destination-request',
+  'handoff-destination-request',
+  'user-interrupted',
+  'assistant.started',
+] as const;
+
 /** Assistant from VAPI (for get/update) */
 export type VapiAssistant = {
   id: string;
@@ -186,6 +229,8 @@ export type VapiAssistant = {
   model?: { messages?: { role?: string; content?: string }[]; toolIds?: string[] };
   voice?: { provider?: string; voiceId?: string };
   transcriber?: { language?: string };
+  clientMessages?: string[];
+  serverMessages?: string[];
   [key: string]: unknown;
 };
 
@@ -201,6 +246,8 @@ export async function updateAssistant(id: string, payload: Partial<{
   voice: AssistantVoiceConfig;
   transcriber: AssistantTranscriberConfig;
   transcriptionEnabled: boolean;
+  clientMessages: string[];
+  serverMessages: string[];
 }>) {
   return orbitCoreRequest('PATCH', `/assistant/${id}`, payload) as Promise<VapiAssistant>;
 }
@@ -228,6 +275,35 @@ export function toNova2Language(lang: string | undefined): string {
 function resolveAssistantLanguage(lang: string | undefined): string {
   if (!lang) return 'multi';
   return toNova2Language(lang);
+}
+
+function mergeAssistantMessages(existing: string[] | undefined, required: readonly string[]) {
+  const merged = new Set<string>(required);
+  existing?.forEach((item) => {
+    if (typeof item === 'string' && item) merged.add(item);
+  });
+  return [...merged];
+}
+
+export function buildWebCallAssistantConfig(existing?: Pick<VapiAssistant, 'clientMessages' | 'serverMessages'>): AssistantWebCallConfig {
+  return {
+    clientMessages: mergeAssistantMessages(existing?.clientMessages, DEFAULT_ASSISTANT_CLIENT_MESSAGES),
+    serverMessages: mergeAssistantMessages(existing?.serverMessages, DEFAULT_ASSISTANT_SERVER_MESSAGES),
+  };
+}
+
+function normalizeAssistantPayloadForWebCall<T extends Record<string, unknown>>(payload: T): T & AssistantWebCallConfig {
+  return {
+    ...payload,
+    ...buildWebCallAssistantConfig({
+      clientMessages: Array.isArray(payload.clientMessages)
+        ? payload.clientMessages.filter((value): value is string => typeof value === 'string')
+        : undefined,
+      serverMessages: Array.isArray(payload.serverMessages)
+        ? payload.serverMessages.filter((value): value is string => typeof value === 'string')
+        : undefined,
+    }),
+  };
 }
 
 export function buildAssistantModelConfig(systemPrompt: string, toolIds?: string[]): AssistantModelConfig {
@@ -291,6 +367,7 @@ export async function createAssistantFromScratch(params: {
     voice: buildAssistantVoiceConfig(voice),
     transcriptionEnabled: true,
     transcriber: buildAssistantTranscriberConfig(language),
+    ...buildWebCallAssistantConfig(),
   };
   return orbitCoreRequest('POST', '/assistant', payload);
 }

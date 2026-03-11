@@ -1,6 +1,41 @@
 import { NextResponse } from 'next/server';
 import { fetchAssistants, fetchAssistantById } from '@/lib/services/orbit';
 
+const PHARMACY_CSR_EXAMPLE_REQUEST = "Create a Pharmacist CSR";
+const PHARMACY_CSR_EXAMPLE_RESPONSE = `{
+  "id": "e2f1a3b4-5c6d-4e7f-8g9h-0i1j2k3l4m5n",
+  "orgId": "9497cd9a-d002-40d6-9b66-04fd98855f29",
+  "name": "Template Pharmacy CSR",
+  "voice": {
+    "voiceId": "Laura",
+    "provider": "vapi"
+  },
+  "model": {
+    "model": "gpt-4.1",
+    "messages": [
+      {
+        "role": "system",
+        "content": "[Identity]\\nYou are Alex, a friendly and empathetic pharmacy assistant for HealthFirst Pharmacy. Your role is to assist patients with prescription refills, check order statuses, answer general questions about pharmacy hours or services, and provide empathetic support for their health inquiries.\\n\\n[Style]\\n- Be warm, professional, and highly patient. You are speaking with people who may be unwell or stressed.\\n- Use natural, reassuring language. If someone is frustrated, acknowledge their feelings immediately.\\n- Keep your tone calm, steady, and clear. Avoid sounding robotic or overly hurried.\\n- Use conversational fillers occasionally.\\n\\n[Response Guidelines]\\n- Always confirm the patient’s identity before discussing prescription details.\\n- If a question is medical in nature, always advise them to speak directly to the pharmacist and offer to transfer the call.\\n- Be concise but thorough. Ask one question at a time.\\n\\n[Task & Goals]\\n1. Greet and authenticate the caller.\\n2. Handle refill, status, and general service requests.\\n3. Escalate medical questions or complaints appropriately.\\n4. Close warmly and helpfully."
+      }
+    ],
+    "provider": "openai"
+  },
+  "firstMessage": "Thank you for calling HealthFirst Pharmacy. This is Alex. How can I assist you with your medications today?",
+  "voicemailMessage": "Hello, you've reached HealthFirst Pharmacy. Please leave your name and callback number.",
+  "endCallMessage": "Thank you for calling HealthFirst Pharmacy. Have a healthy day!",
+  "transcriber": {
+    "model": "flux-general-en",
+    "language": "en",
+    "provider": "deepgram"
+  },
+  "analysisPlan": {
+    "summaryPlan": {
+      "enabled": true
+    }
+  },
+  "backgroundDenoisingEnabled": true
+}`;
+
 /** Embedded Ivan template (fallback when VAPI fetch fails) */
 const IVAN_TEMPLATE = {
   name: "ivan-eburon",
@@ -53,7 +88,7 @@ You are Ivan, Client Care Consultant and Technical Team Lead for Eburon AI. You'
 };
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite-preview';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const IVAN_ID = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_IVAN_ID;
 
@@ -94,6 +129,28 @@ USER REQUEST: ${userRequest}
 Output ONLY valid JSON: {"name":"...","firstMessage":"...","systemPrompt":"..."}`;
 }
 
+function buildStructuredPrompt(userRequest: string) {
+  return `You create voice assistant templates from short requests.
+
+Use the example below as a style and structure reference, but adapt it to the new request.
+
+Example input:
+${PHARMACY_CSR_EXAMPLE_REQUEST}
+
+Example output:
+${PHARMACY_CSR_EXAMPLE_RESPONSE}
+
+Now create the new assistant for:
+${userRequest}
+
+Return ONLY valid JSON. Required fields:
+- name
+- firstMessage
+- systemPrompt
+
+If you include a nested model object, its system message must match systemPrompt.`;
+}
+
 export async function POST(req: Request) {
   try {
     const { transcript } = await req.json();
@@ -109,10 +166,11 @@ export async function POST(req: Request) {
 
     const userRequest = transcript.trim();
     const replacePrompt = buildReplacePrompt(ivan, userRequest);
+    const structuredPrompt = buildStructuredPrompt(userRequest);
 
     let raw: string = '';
 
-    const callGemini = async (prompt: string) => {
+    const callGemini = async (prompt: string, requestText: string) => {
       const gUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
       const res = await fetch(gUrl, {
         method: 'POST',
@@ -121,9 +179,20 @@ export async function POST(req: Request) {
           contents: [
             {
               role: 'user',
-              parts: [{ text: prompt }],
+              parts: [{ text: PHARMACY_CSR_EXAMPLE_REQUEST }],
+            },
+            {
+              role: 'model',
+              parts: [{ text: PHARMACY_CSR_EXAMPLE_RESPONSE }],
+            },
+            {
+              role: 'user',
+              parts: [{ text: requestText }],
             },
           ],
+          systemInstruction: {
+            parts: [{ text: prompt }],
+          },
           generationConfig: {
             temperature: 0.2,
             maxOutputTokens: 2048,
@@ -169,11 +238,11 @@ export async function POST(req: Request) {
     // PRIMARY: Gemini
     if (GEMINI_API_KEY) {
       try {
-        raw = await callGemini(replacePrompt);
+        raw = await callGemini(structuredPrompt, userRequest);
       } catch (geminiErr) {
         console.warn('[agent-from-voice] Gemini failed, attempting OpenAI fallback...', geminiErr);
         if (OPENAI_API_KEY) {
-          raw = await callOpenAI(replacePrompt);
+          raw = await callOpenAI(structuredPrompt || replacePrompt);
         } else {
           throw geminiErr;
         }
@@ -188,11 +257,19 @@ export async function POST(req: Request) {
 
     // Parse JSON (strip markdown code blocks if present)
     const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-    const parsed = JSON.parse(cleaned) as { name?: string; firstMessage?: string; systemPrompt?: string };
+    const parsed = JSON.parse(cleaned) as {
+      name?: string;
+      firstMessage?: string;
+      systemPrompt?: string;
+      model?: { messages?: { role?: string; content?: string }[] };
+    };
+    const parsedSystemPrompt = typeof parsed.systemPrompt === 'string'
+      ? parsed.systemPrompt.trim()
+      : parsed.model?.messages?.find((message) => message.role === 'system')?.content?.trim();
 
     const name = typeof parsed.name === 'string' ? parsed.name.trim() : 'My Agent';
     const firstMessage = typeof parsed.firstMessage === 'string' ? parsed.firstMessage.trim() : 'Hi! How can I help you today?';
-    const agentSystemPrompt = typeof parsed.systemPrompt === 'string' ? parsed.systemPrompt.trim() : 'You are a helpful AI assistant.';
+    const agentSystemPrompt = parsedSystemPrompt || 'You are a helpful AI assistant.';
 
     if (stream) {
       const encoder = new TextEncoder();

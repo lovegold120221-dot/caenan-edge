@@ -120,22 +120,66 @@ r = requests.post("${base}/echo/tts", headers={
   {
     id: "call",
     category: "Calls",
-    title: "Create Call",
+    title: "Create Outbound Call",
     method: "POST",
     path: "/orbit/call",
     fullPath: "/api/orbit/call",
-    desc: "Initiates an outbound phone call.",
+    desc: "Initiates an outbound phone call from an AI assistant.",
     params: [
-      { name: "assistantId", type: "string", required: true, default: "asst_xxx" },
+      { name: "assistantId", type: "string", required: true, default: "019c51ea-8ce8-4962-9b83-70023ec0d6c2" },
       { name: "customerNumber", type: "string", required: true, default: "+15551234567" },
     ] as Param[],
     responseStatus: "201 Created",
-    responseExample: { id: "call_xxx", status: "ringing" },
+    responseExample: { id: "call_019c...", status: "ringing", type: "outboundPhoneCall" },
     examples: {
       curl: (base: string) => `curl -X POST "${base}/orbit/call" \\
-  -d '{"assistantId":"asst_xxx","customerNumber":"+15551234567"}'`,
-      js: (base: string) => `await fetch("${base}/orbit/call", { method: "POST", body: JSON.stringify({...}) });`,
-      py: (base: string) => `requests.post("${base}/orbit/call", json={...})`,
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"assistantId":"019c51ea-8ce8-4962-9b83-70023ec0d6c2","customerNumber":"+15551234567"}'`,
+      js: (base: string) => `const res = await fetch("${base}/orbit/call", {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer YOUR_API_KEY",
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    assistantId: "019c51ea-8ce8-4962-9b83-70023ec0d6c2",
+    customerNumber: "+15551234567"
+  })
+});`,
+      py: (base: string) => `import requests
+r = requests.post("${base}/orbit/call", headers={
+    "Authorization": "Bearer YOUR_API_KEY"
+}, json={
+    "assistantId": "019c51ea-8ce8-4962-9b83-70023ec0d6c2",
+    "customerNumber": "+15551234567"
+})`,
+    },
+  },
+  {
+    id: "inbound",
+    category: "Calls",
+    title: "Test Inbound Call",
+    method: "POST",
+    path: "/orbit/calls",
+    fullPath: "/api/orbit/calls",
+    desc: "Simulates or handles an inbound call event.",
+    params: [
+      { name: "assistantId", type: "string", required: true, default: "019c51ea-8ce8-4962-9b83-70023ec0d6c2" },
+      { name: "customerNumber", type: "string", required: false, default: "+15550009999" },
+    ] as Param[],
+    responseStatus: "200 OK",
+    responseExample: { success: true, message: "Inbound session simulated" },
+    examples: {
+      curl: (base: string) => `curl -X POST "${base}/orbit/calls" \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -d '{"assistantId":"019c51ea-8ce8-4962-9b83-70023ec0d6c2"}'`,
+      js: (base: string) => `await fetch("${base}/orbit/calls", {
+  method: "POST",
+  headers: { "Authorization": "Bearer YOUR_API_KEY" },
+  body: JSON.stringify({ assistantId: "..." })
+});`,
+      py: (base: string) => `requests.post("${base}/orbit/calls", json={"assistantId": "..."})`,
     },
   },
 ] as const;

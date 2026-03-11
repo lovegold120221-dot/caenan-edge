@@ -55,22 +55,33 @@ const languageDialectMap: Record<string, string[]> = {
   "Russian": ["Russia", "Belarus", "Kazakhstan"],
 };
 
-// Default sample agent (MorganCsr) for testing Orbit Web Call
+// Default sample agent (Morgan CSR) for testing Orbit Web Call and Create defaults
 const DEFAULT_SAMPLE_AGENT = {
   id: "019c51ea-8ce8-4962-9b83-70023ec0d6c2",
-  name: "Customer Support Specialist",
+  name: "Morgan CSR",
 } as const;
 
-// Fallback defaults when Ivan not found
-const DEFAULT_AGENT_NAME = "Customer Support Specialist";
-const DEFAULT_AGENT_INTRO = "Hi there! I'm here to help you with any questions or issues you might have. What can I do for you today?";
-const DEFAULT_AGENT_SKILLS = "You are an empathetic and knowledgeable Customer Support Specialist. Your goal is to resolve product issues and answer customer questions efficiently and kindly.";
+// Fallback defaults when the Morgan CSR assistant cannot be loaded remotely
+const DEFAULT_AGENT_NAME = "Morgan CSR";
+const DEFAULT_AGENT_INTRO = "Hi, this is Morgan from Eburon AI customer support. I can help with onboarding, troubleshooting, account questions, and next steps. What can I help you with today?";
+const DEFAULT_AGENT_SKILLS = "You are Morgan, a calm and capable customer support specialist for Eburon AI. Help users with onboarding, troubleshooting, billing context, account questions, and escalation routing. Be warm, concise, and practical. Ask one question at a time, confirm the issue before suggesting fixes, and always end with clear next steps.";
 const ECHO_MODEL_OPTIONS = [
   { id: "tts/echo_flash-v2.5", label: "⚡ Echo Flash v2.5" },
   { id: "tts/echo_multilingual-v2", label: "🌍 Echo Multilingual v2" },
   { id: "tts/echo_turbo-v2.5", label: "🚀 Echo Turbo v2.5" },
 ] as const;
 const DEFAULT_ECHO_MODEL = ECHO_MODEL_OPTIONS[0].id;
+
+function getTtsEnhanceErrorMessage(err: unknown) {
+  const message = err instanceof Error ? err.message : "Could not enhance.";
+  if (/model .* not found/i.test(message)) {
+    return "Text enhancement is unavailable because the configured local model is missing.";
+  }
+  if (/Cannot reach|running and the model|took too long|returned 404/i.test(message)) {
+    return "Text enhancement is unavailable right now. Check the local enhancer server and model configuration.";
+  }
+  return message;
+}
 
 type ApiKeyItem = {
   id: string;
@@ -515,8 +526,8 @@ export default function Dashboard() {
       if (typeof data.enhanced === "string") setTtsText(data.enhanced);
       setTtsStatus("Expression added.");
     } catch (err) {
-      console.error(err);
-      setTtsStatus("Error: " + (err instanceof Error ? err.message : "Could not add expression."));
+      console.warn("[tts-enhance:add-expression]", err);
+      setTtsStatus("Error: " + getTtsEnhanceErrorMessage(err));
     } finally {
       setIsEnhancingExpression(false);
     }
@@ -537,8 +548,8 @@ export default function Dashboard() {
       if (typeof data.enhanced === "string") setTtsText(data.enhanced);
       setTtsStatus("Enhanced.");
     } catch (err) {
-      console.error(err);
-      setTtsStatus("Error: " + (err instanceof Error ? err.message : "Could not enhance."));
+      console.warn("[tts-enhance:enhance]", err);
+      setTtsStatus("Error: " + getTtsEnhanceErrorMessage(err));
     } finally {
       setIsEnhancingExpression(false);
     }
@@ -1048,7 +1059,7 @@ export default function Dashboard() {
     }
   }, [activeTab, fetchAgentBases]);
 
-  // Load agent form defaults: Ivan from VAPI, or user's assistant
+  // Load agent form defaults: Morgan CSR from VAPI, or the user's own assistant
   const loadAgentFormDefaults = useCallback(async () => {
     if (!user) return;
     try {
@@ -1065,13 +1076,11 @@ export default function Dashboard() {
       const myAssistantId = userData?.assistantId ?? null;
       setUserAssistantId(myAssistantId);
 
-      const ivanId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_IVAN_ID;
-      const ivan = ivanId
-        ? assistants.find((a: { id?: string }) => a.id === ivanId)
-        : assistants.find((a: { name?: string }) => /ivan/i.test(a.name || ""));
+      const morgan = assistants.find((a: { id?: string }) => a.id === DEFAULT_SAMPLE_AGENT.id)
+        ?? assistants.find((a: { name?: string }) => /morgan|customer support specialist/i.test(a.name || ""));
       const defaultAssistant = myAssistantId
-        ? assistants.find((a: { id?: string }) => a.id === myAssistantId) ?? ivan
-        : ivan;
+        ? assistants.find((a: { id?: string }) => a.id === myAssistantId) ?? morgan
+        : morgan;
 
       if (defaultAssistant?.id) {
         const detailRes = await authedFetch(`/api/orbit/assistants/${defaultAssistant.id}`, { cache: "no-store" });
@@ -1983,7 +1992,7 @@ export default function Dashboard() {
                   {/* Left Pane: Text Editor */}
                   <div className="el-tts-left">
                     <div className="el-tts-editor-header">
-                      <div className="flex flex-wrap gap-2">
+                      <div className="el-tts-tool-row">
                         <button type="button" className="btn text-2xs" onClick={() => setTtsText(enhanceTextForTTS(ttsText))} title="Symbols only: @ → at, . → dot (emails, URLs)">
                           Enhance symbols
                         </button>
@@ -2057,13 +2066,13 @@ export default function Dashboard() {
                         <div className="el-select-fake">{ECHO_MODEL_OPTIONS[0].label}</div>
                       </div>
 
-                      <div className="el-field-group mt-auto">
+                      <div className="el-field-group el-field-group-preview">
                         <label className="el-label mb-2">Audio Preview</label>
                         <audio id="ttsAudio" controls className="el-audio-player w-full" ref={audioRef}></audio>
                       </div>
 
-                      {ttsStatus && ttsStatus.startsWith("Error") && (
-                        <div className="text-xs text-bad mt-4 p-3 border border-bad/30 rounded-lg bg-bad/5">
+                      {ttsStatus && (
+                        <div className={`el-tts-feedback ${ttsStatus.startsWith("Error") ? "is-error" : "is-info"}`}>
                           {ttsStatus}
                         </div>
                       )}

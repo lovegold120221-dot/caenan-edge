@@ -83,6 +83,25 @@ function getTtsEnhanceErrorMessage(err: unknown) {
   return message;
 }
 
+function getFetchErrorMessage(err: unknown, fallback: string) {
+  const message = err instanceof Error ? err.message : fallback;
+  if (/Failed to fetch|Load failed|NetworkError/i.test(message)) {
+    return "Could not reach the app server. Start `npm run dev` and reload the current localhost port.";
+  }
+  return message;
+}
+
+function getHistoryErrorHint(error: string | null) {
+  if (!error) return "";
+  if (/Could not reach the app server/i.test(error)) {
+    return "Reload the exact URL printed by Next.js. The old port may no longer be active.";
+  }
+  if (/Unauthorized|API key/i.test(error)) {
+    return "Sign in first or check the API key and provider configuration.";
+  }
+  return "Check the TTS provider configuration and try again.";
+}
+
 type ApiKeyItem = {
   id: string;
   name: string;
@@ -380,7 +399,7 @@ export default function Dashboard() {
         created_at: new Date(h.date_unix * 1000).toISOString(),
       })));
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to fetch history.";
+      const msg = getFetchErrorMessage(err, "Failed to fetch history.");
       setHistoryError(msg);
       setHistory([]);
     } finally {
@@ -846,7 +865,7 @@ export default function Dashboard() {
   const [isCreatingAgent, setIsCreatingAgent] = useState(false);
 
   // Create-from-scratch form (beside iPhone dialer)
-  const [agentLanguage, setAgentLanguage] = useState("en-US");
+  const [agentLanguage, setAgentLanguage] = useState("multilingual");
   const [agentVoice, setAgentVoice] = useState("vapi:Nico");
   const [agentIntroSpiel, setAgentIntroSpiel] = useState(DEFAULT_AGENT_INTRO);
   const [agentSkillsPrompt, setAgentSkillsPrompt] = useState(DEFAULT_AGENT_SKILLS);
@@ -1091,7 +1110,7 @@ export default function Dashboard() {
           setAgentIntroSpiel(detail.firstMessage || DEFAULT_AGENT_INTRO);
           setAgentSkillsPrompt(sysMsg?.content || DEFAULT_AGENT_SKILLS);
           const lang = detail.transcriber?.language;
-          setAgentLanguage(lang === "multi" ? "multilingual" : lang || "en");
+          setAgentLanguage(lang === "multi" ? "multilingual" : lang || "multilingual");
           const v = detail.voice;
           if (v?.provider && v?.voiceId) {
             setAgentVoice(`${v.provider}:${v.voiceId}`);
@@ -1141,7 +1160,7 @@ export default function Dashboard() {
       setApiKeys(Array.isArray(data?.keys) ? data.keys : []);
     } catch (err) {
       setApiKeys([]);
-      setApiKeysStatus(err instanceof Error ? err.message : "Failed to load API keys");
+      setApiKeysStatus(getFetchErrorMessage(err, "Failed to load API keys"));
     } finally {
       setIsApiKeysLoading(false);
     }
@@ -1173,7 +1192,7 @@ export default function Dashboard() {
       await Promise.all([fetchApiKeys(), fetchApiUsage()]);
       setApiKeysStatus("API key created. Copy it now; it will not be shown again.");
     } catch (err) {
-      setApiKeysStatus(err instanceof Error ? err.message : "Failed to create API key");
+      setApiKeysStatus(getFetchErrorMessage(err, "Failed to create API key"));
     }
   }, [authedFetch, fetchApiKeys, fetchApiUsage, newApiKeyName]);
 
@@ -1186,7 +1205,7 @@ export default function Dashboard() {
       setApiKeysStatus("API key revoked.");
       await Promise.all([fetchApiKeys(), fetchApiUsage()]);
     } catch (err) {
-      setApiKeysStatus(err instanceof Error ? err.message : "Failed to revoke API key");
+      setApiKeysStatus(getFetchErrorMessage(err, "Failed to revoke API key"));
     }
   }, [authedFetch, fetchApiKeys, fetchApiUsage]);
 
@@ -2113,7 +2132,7 @@ export default function Dashboard() {
                     ) : historyError ? (
                       <div className="placeholder-pane h-32 flex flex-col items-center justify-center gap-2 text-center">
                         <span className="text-bad">{historyError}</span>
-                        <span className="text-2xs text-muted">Check API keys in configuration.</span>
+                        <span className="text-2xs text-muted">{getHistoryErrorHint(historyError)}</span>
                         <button className="btn text-2xs mt-2" onClick={fetchRealTimeHistory}>Retry</button>
                       </div>
                     ) : history.length === 0 ? (

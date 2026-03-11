@@ -3,7 +3,9 @@ import {
   createAgent,
   createAssistantFromScratch,
   updateAssistant,
-  toNova2Language,
+  buildAssistantModelConfig,
+  buildAssistantTranscriberConfig,
+  buildAssistantVoiceConfig,
   createQueryTool,
   fetchAssistantById,
 } from '@/lib/services/orbit';
@@ -47,19 +49,10 @@ export async function POST(req: Request) {
       const result = await updateAssistant(body.assistantId, {
         name: body.name,
         firstMessage: body.firstMessage || undefined,
-        model: {
-          provider: 'openai',
-          model: 'gpt-4o-mini',
-          messages: [{ role: 'system', content: systemPrompt }],
-          ...(mergedToolIds?.length ? { toolIds: mergedToolIds } : {}),
-        },
-        ...(voice && { voice: voice }),
+        model: buildAssistantModelConfig(systemPrompt, mergedToolIds),
+        ...(voice && { voice: buildAssistantVoiceConfig(voice) }),
         ...(body.language !== undefined && {
-          transcriber: {
-            provider: 'deepgram',
-            model: 'nova-2',
-            language: toNova2Language(body.language),
-          },
+          transcriber: buildAssistantTranscriberConfig(body.language),
           transcriptionEnabled: true,
         }),
       });

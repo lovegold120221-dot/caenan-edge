@@ -109,6 +109,75 @@ export async function createAgent(payload: unknown) {
   return orbitCoreRequest('POST', '/assistant', payload);
 }
 
+type AssistantMessage = { role: string; content: string };
+
+type AssistantModelConfig = {
+  provider: string;
+  model: string;
+  messages: AssistantMessage[];
+  toolIds?: string[];
+  maxTokens?: number;
+  temperature?: number;
+};
+
+type AssistantVoiceConfig = {
+  provider: string;
+  voiceId: string;
+  inputPunctuationBoundaries?: string[];
+};
+
+type AssistantTranscriberConfig = {
+  provider: string;
+  model: string;
+  language: string;
+  numerals?: boolean;
+  confidenceThreshold?: number;
+  fallbackPlan?: {
+    transcribers: Array<{
+      provider: string;
+      model: string;
+      language: string;
+    }>;
+  };
+};
+
+const DEFAULT_ASSISTANT_VOICE: AssistantVoiceConfig = {
+  provider: '11labs',
+  voiceId: 'EXAVITQu4vr4xnSDxMaL',
+};
+
+const GREGORY_MODEL_TEMPLATE = {
+  provider: 'google' as const,
+  model: 'gemini-3-flash-preview',
+  maxTokens: 250,
+  temperature: 0.4,
+};
+
+const GREGORY_TTS_PUNCTUATION_BOUNDARIES = [
+  ':',
+  ',',
+  '||',
+  '|',
+  '॥',
+  '।',
+  '۔',
+  '،',
+  ')',
+  ';',
+  '?',
+  '!',
+  '.',
+  '，',
+  '。',
+] as const;
+
+const GREGORY_TRANSCRIBER_TEMPLATE = {
+  provider: 'deepgram' as const,
+  model: 'nova-3-general',
+  numerals: false,
+  confidenceThreshold: 0.4,
+};
+
 /** Assistant from VAPI (for get/update) */
 export type VapiAssistant = {
   id: string;
@@ -128,9 +197,9 @@ export async function fetchAssistantById(id: string) {
 export async function updateAssistant(id: string, payload: Partial<{
   name: string;
   firstMessage: string;
-  model: { provider: string; model: string; messages: { role: string; content: string }[]; toolIds?: string[] };
-  voice: { provider: string; voiceId: string };
-  transcriber: { provider: string; model: string; language: string };
+  model: AssistantModelConfig;
+  voice: AssistantVoiceConfig;
+  transcriber: AssistantTranscriberConfig;
   transcriptionEnabled: boolean;
 }>) {
   return orbitCoreRequest('PATCH', `/assistant/${id}`, payload) as Promise<VapiAssistant>;
@@ -156,6 +225,52 @@ export function toNova2Language(lang: string | undefined): string {
   return 'multi'; // fallback for unsupported (ar, fil, he, etc.)
 }
 
+function resolveAssistantLanguage(lang: string | undefined): string {
+  if (!lang) return 'multi';
+  return toNova2Language(lang);
+}
+
+export function buildAssistantModelConfig(systemPrompt: string, toolIds?: string[]): AssistantModelConfig {
+  return {
+    ...GREGORY_MODEL_TEMPLATE,
+    messages: [
+      { role: 'system', content: systemPrompt || 'You are a helpful AI assistant.' },
+    ],
+    ...(toolIds?.length ? { toolIds } : {}),
+  };
+}
+
+export function buildAssistantVoiceConfig(
+  voice?: { provider: 'vapi' | '11labs'; voiceId: string }
+): AssistantVoiceConfig {
+  const baseVoice = voice?.provider && voice?.voiceId
+    ? { provider: voice.provider, voiceId: voice.voiceId }
+    : DEFAULT_ASSISTANT_VOICE;
+
+  return {
+    ...baseVoice,
+    inputPunctuationBoundaries: [...GREGORY_TTS_PUNCTUATION_BOUNDARIES],
+  };
+}
+
+export function buildAssistantTranscriberConfig(language?: string): AssistantTranscriberConfig {
+  const resolvedLanguage = resolveAssistantLanguage(language);
+
+  return {
+    ...GREGORY_TRANSCRIBER_TEMPLATE,
+    language: resolvedLanguage,
+    fallbackPlan: {
+      transcribers: [
+        {
+          provider: 'deepgram',
+          model: 'nova-3',
+          language: resolvedLanguage,
+        },
+      ],
+    },
+  };
+}
+
 export async function createAssistantFromScratch(params: {
   name: string;
   firstMessage: string;
@@ -165,29 +280,17 @@ export async function createAssistantFromScratch(params: {
   toolIds?: string[];
 }) {
   const { name, firstMessage, systemPrompt, language, voice, toolIds } = params;
-  const voiceConfig = voice?.provider && voice?.voiceId
-    ? { provider: voice.provider as 'vapi' | '11labs', voiceId: voice.voiceId }
-    : { provider: '11labs' as const, voiceId: 'EXAVITQu4vr4xnSDxMaL' };
   const payload = {
     name,
     firstMessage: firstMessage || undefined,
     firstMessageMode: 'assistant-speaks-first' as const,
     model: {
-      provider: 'openai' as const,
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system' as const, content: systemPrompt || 'You are a helpful AI assistant.' },
-      ],
+      ...buildAssistantModelConfig(systemPrompt, toolIds),
       tools: [sendSmsTool],
-      ...(toolIds?.length ? { toolIds } : {}),
     },
-    voice: voiceConfig,
+    voice: buildAssistantVoiceConfig(voice),
     transcriptionEnabled: true,
-    transcriber: {
-      provider: 'deepgram' as const,
-      model: 'nova-2',
-      language: toNova2Language(language),
-    },
+    transcriber: buildAssistantTranscriberConfig(language),
   };
   return orbitCoreRequest('POST', '/assistant', payload);
 }

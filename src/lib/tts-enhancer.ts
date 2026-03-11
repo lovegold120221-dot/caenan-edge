@@ -216,5 +216,5 @@ export function concisePhrasing(text: string): string {
     .trim();
 }
 
-/** Insert a short pause. Use square brackets only, no angle or curly braces. */
-export const BREAK_TAG = '[pause]';
+/** Insert a short pause. Use punctuation or commas for pauses. */
+export const BREAK_TAG = '';

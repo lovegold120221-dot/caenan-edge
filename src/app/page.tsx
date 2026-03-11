@@ -237,7 +237,10 @@ export default function Dashboard() {
     orbit.on("call-start", onCallStart);
     orbit.on("call-end", onCallEnd);
     orbit.on("error", onError);
-    orbit.on("message", onMessage);
+    orbit.on("message", (message) => {
+      console.log("Vapi Message:", message.type, message);
+      onMessage(message);
+    });
     orbit.on("volume-level", onVolumeLevel);
 
     return () => {
@@ -1918,9 +1921,18 @@ export default function Dashboard() {
                         </div>
                         <div className="vl-grid">
                           {grouped[cat].map(v => (
-                            <div key={v.voice_id} className="vl-card">
+                            <div 
+                              key={v.voice_id} 
+                              className={`vl-card ${currentAudio && currentAudio.src === v.preview_url ? "playing" : ""}`}
+                              onClick={() => {
+                                if (v.preview_url) handlePlayPreview(v.preview_url);
+                              }}
+                            >
                               <div className="vl-card-avatar">
-                                <Volume2 size={16} />
+                                <Volume2 
+                                  size={16} 
+                                  className={currentAudio && currentAudio.src === v.preview_url ? "text-lime animate-pulse" : ""}
+                                />
                               </div>
                               <div className="vl-card-info">
                                 <div className="vl-card-name" title={v.name}>{v.name}</div>
@@ -1931,7 +1943,17 @@ export default function Dashboard() {
                                 </div>
                               </div>
                               {v.preview_url && (
-                                <audio src={v.preview_url} controls preload="metadata" className="vl-card-audio" />
+                                <button
+                                  type="button"
+                                  className="vl-card-play-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handlePlayPreview(v.preview_url);
+                                  }}
+                                  title="Play Preview"
+                                >
+                                  {currentAudio && currentAudio.src === v.preview_url ? <PhoneOff size={14} /> : <Play size={14} />}
+                                </button>
                               )}
                             </div>
                           ))}

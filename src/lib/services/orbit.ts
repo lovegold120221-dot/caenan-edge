@@ -131,6 +131,7 @@ export async function updateAssistant(id: string, payload: Partial<{
   model: { provider: string; model: string; messages: { role: string; content: string }[]; toolIds?: string[] };
   voice: { provider: string; voiceId: string };
   transcriber: { provider: string; model: string; language: string };
+  transcriptionEnabled: boolean;
 }>) {
   return orbitCoreRequest('PATCH', `/assistant/${id}`, payload) as Promise<VapiAssistant>;
 }
@@ -181,6 +182,7 @@ export async function createAssistantFromScratch(params: {
       ...(toolIds?.length ? { toolIds } : {}),
     },
     voice: voiceConfig,
+    transcriptionEnabled: true,
     transcriber: {
       provider: 'deepgram' as const,
       model: 'nova-2',

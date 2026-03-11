@@ -2457,6 +2457,92 @@ body.light-mode .call-log-transcript-toolbar .btn {
   background: rgba(239, 68, 68, 0.05);
 }
 
+.vl-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--card);
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.vl-card:hover {
+  border-color: var(--limeDim);
+  background: var(--bg);
+}
+.vl-card.playing {
+  border-color: var(--lime);
+  background: rgba(152, 255, 63, 0.05);
+}
+.vl-card-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--panel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--faint);
+  flex-shrink: 0;
+}
+.vl-card.playing .vl-card-avatar {
+  color: var(--lime);
+}
+.vl-card-info {
+  flex: 1;
+  min-width: 0;
+}
+.vl-card-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vl-card-category {
+  font-size: 11px;
+  color: var(--faint);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vl-card-lang {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.vl-card-play-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  color: var(--faint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.vl-card-play-btn:hover {
+  color: var(--lime);
+  border-color: var(--lime);
+}
+.vl-card.playing .vl-card-play-btn {
+  background: var(--lime);
+  color: #000;
+  border-color: var(--lime);
+}
+.vl-card-audio {
+  display: none;
+}
+
 /* Docs Playground Fixes */
 .docs-playground {
   display: grid;

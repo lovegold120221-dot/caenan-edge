@@ -60,6 +60,7 @@ export async function POST(req: Request) {
             model: 'nova-2',
             language: toNova2Language(body.language),
           },
+          transcriptionEnabled: true,
         }),
       });
       return NextResponse.json(result);

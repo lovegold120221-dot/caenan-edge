@@ -24,7 +24,9 @@ import {
   X,
   Maximize2,
   Minimize2,
-  Pencil
+  Pencil,
+  Trash2,
+  Zap
 } from "lucide-react";
 
 import OrbitCore from "@vapi-ai/web";
@@ -958,9 +960,11 @@ export default function Dashboard() {
   const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
   const [isFetchingBases, setIsFetchingBases] = useState(false);
   const [userAssistantId, setUserAssistantId] = useState<string | null>(null);
+  const [userAgents, setUserAgents] = useState<{ id: string; name?: string; firstMessage?: string }[]>([]);
   const [newAgentName, setNewAgentName] = useState(DEFAULT_AGENT_NAME);
   const [agentStatus, setAgentStatus] = useState("");
   const [isCreatingAgent, setIsCreatingAgent] = useState(false);
+  const [isDeletingAgent, setIsDeletingAgent] = useState<string | null>(null);
 
   // Create-from-scratch form (beside iPhone dialer)
   const [agentLanguage, setAgentLanguage] = useState("multilingual");
@@ -1220,11 +1224,26 @@ export default function Dashboard() {
     }
   }, [authedFetch, user]);
 
+  const fetchUserAgents = useCallback(async () => {
+    if (!user) return;
+    try {
+      const res = await authedFetch("/api/orbit/assistants", { cache: "no-store" });
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        const myAgents = data.filter((a: { userId?: string }) => a.userId === user.id);
+        setUserAgents(myAgents);
+      }
+    } catch (error) {
+      console.error("Failed to fetch user agents:", error);
+    }
+  }, [authedFetch, user]);
+
   useEffect(() => {
     if ((activeTab === "pane-agents" || activeTab === "pane-Create") && user) {
       loadAgentFormDefaults();
+      fetchUserAgents();
     }
-  }, [activeTab, user, loadAgentFormDefaults]);
+  }, [activeTab, user, loadAgentFormDefaults, fetchUserAgents]);
 
   // Always include default sample agent first, then fetched agents (no duplicate id)
   const displayAgents = useMemo(() => {
@@ -1683,6 +1702,35 @@ export default function Dashboard() {
     } finally {
       setIsCreatingAgent(false);
     }
+  };
+
+  const handleDeleteAgent = async (agentId: string) => {
+    if (!user) return;
+    if (!confirm("Delete this agent? This cannot be undone.")) return;
+    setIsDeletingAgent(agentId);
+    try {
+      const res = await authedFetch(`/api/orbit/assistants/${agentId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error((data as { error?: string })?.error || "Failed to delete agent");
+      }
+      setUserAgents(prev => prev.filter(a => a.id !== agentId));
+      if (userAssistantId === agentId) {
+        setUserAssistantId(null);
+        setEditingAgentId(null);
+      }
+      fetchAgentBases();
+    } catch (err) {
+      console.error(err);
+      setAgentStatus("Error: " + (err instanceof Error ? err.message : "Failed to delete agent"));
+    } finally {
+      setIsDeletingAgent(null);
+    }
+  };
+
+  const handleDeployAgent = async (agentId: string) => {
+    setSelectedDialerAgentId(agentId);
+    setActiveTab("pane-Create");
   };
 
   const handleBulkPhonebookUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2958,6 +3006,58 @@ export default function Dashboard() {
                     )}
                   </div>
                 </div>
+
+              {userAgents.length > 0 && (
+                <div className="mt-8 max-w-[980px]">
+                  <label className="mb-3 block text-2xs font-semibold text-faint uppercase tracking-wider">My Agents</label>
+                  <div className="space-y-2">
+                    {userAgents.map((agent) => (
+                      <div key={agent.id} className="flex items-center justify-between p-3 rounded-xl border border-white/10 bg-white/5">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">{agent.name || "Unnamed Agent"}</div>
+                          <div className="text-2xs text-faint truncate">
+                            {agent.firstMessage || "No first message"}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 ml-4">
+                          <button
+                            type="button"
+                            className="btn flex items-center gap-1.5 py-1.5 px-3 text-2xs"
+                            onClick={() => handleDeployAgent(agent.id)}
+                            title="Deploy"
+                          >
+                            <Zap size={14} />
+                            Deploy
+                          </button>
+                          <button
+                            type="button"
+                            className="btn flex items-center gap-1.5 py-1.5 px-3 text-2xs"
+                            onClick={() => handleEditAgent(agent.id)}
+                            title="Edit"
+                          >
+                            <Pencil size={14} />
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="btn flex items-center gap-1.5 py-1.5 px-3 text-2xs text-bad hover:bg-bad/10"
+                            onClick={() => handleDeleteAgent(agent.id)}
+                            disabled={isDeletingAgent === agent.id}
+                            title="Delete"
+                          >
+                            {isDeletingAgent === agent.id ? (
+                              <Loader2 size={14} className="animate-spin" />
+                            ) : (
+                              <Trash2 size={14} />
+                            )}
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="mt-8 max-w-[980px]">
                 <label className="mb-3 block text-2xs font-semibold text-faint uppercase tracking-wider">Active</label>

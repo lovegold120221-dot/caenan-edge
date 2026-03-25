@@ -101,13 +101,24 @@ export type VapiVoice = {
 
 export async function fetchVoices(): Promise<VapiVoice[]> {
   if (!getOrbitSecret()) return [];
-  const raw = await orbitCoreRequest('GET', '/voice');
-  if (Array.isArray(raw)) return raw as VapiVoice[];
-  if (raw && typeof raw === 'object' && Array.isArray((raw as { voices?: unknown[] }).voices)) {
-    return (raw as { voices: VapiVoice[] }).voices;
-  }
-  if (raw && typeof raw === 'object' && Array.isArray((raw as { data?: unknown[] }).data)) {
-    return (raw as { data: VapiVoice[] }).data;
+  const raw = await orbitCoreRequest('GET', '/voice-library/vapi');
+  if (Array.isArray(raw)) {
+    // Filter out deleted voices and map to expected format
+    return raw
+      .filter((voice: any) => !voice.isDeleted)
+      .map((voice: any) => ({
+        voice_id: voice.providerId,
+        name: voice.name,
+        provider: voice.provider,
+        description: voice.description,
+        preview_url: voice.previewUrl,
+        category: voice.gender || 'default',
+        labels: {
+          gender: voice.gender || '',
+          accent: voice.accent || '',
+          language: voice.accent || '',
+        },
+      }));
   }
   return [];
 }

@@ -573,23 +573,17 @@ export default function Dashboard() {
   const userId = user?.id ?? null;
 
   const loadVoicesAndModels = useCallback(async () => {
-    const [vapiVoices, echoVoices] = await Promise.all([
-      authedFetch("/api/orbit/voices").then(r => r.json()).catch(() => []),
-      authedFetch("/api/echo/voices").then(r => r.json()).catch(() => []),
-    ]);
+    // Only fetch VAPI voices
+    const vapiVoices = await authedFetch("/api/orbit/voices").then(r => r.json()).catch(() => []);
 
-    const vapiWithProvider = (Array.isArray(vapiVoices) ? vapiVoices : []).map((v) => ({ ...v, provider: (v as Record<string, unknown>).provider || 'vapi' }));
-    const echoWithProvider = (Array.isArray(echoVoices) ? echoVoices : []).map((v) => ({ ...v, provider: '11labs' }));
-    const mergedVoices = [...vapiWithProvider, ...echoWithProvider];
-    const seen = new Set<string>();
-    const uniqueVoices = mergedVoices.filter((v) => {
-      const voiceId = (v as Voice).voice_id;
-      if (!voiceId || seen.has(voiceId)) return false;
-      seen.add(voiceId);
-      return true;
-    });
-    setVoices(uniqueVoices as unknown as Voice[]);
-    if (uniqueVoices.length > 0 && !selectedVoice) setSelectedVoice((uniqueVoices[0] as Voice).voice_id);
+    // Map VAPI voices to remove provider branding
+    const cleanedVoices = (Array.isArray(vapiVoices) ? vapiVoices : []).map((v) => ({
+      ...v,
+      provider: undefined // Remove provider branding
+    }));
+    
+    setVoices(cleanedVoices as unknown as Voice[]);
+    if (cleanedVoices.length > 0 && !selectedVoice) setSelectedVoice((cleanedVoices[0] as Voice).voice_id);
 
     try {
       const res = await authedFetch("/api/echo/models");
@@ -601,9 +595,8 @@ export default function Dashboard() {
   }, [authedFetch, selectedVoice]);
 
   useEffect(() => {
-    if (!userId) return;
     loadVoicesAndModels();
-  }, [loadVoicesAndModels, userId]);
+  }, [loadVoicesAndModels]);
 
   const [sttFile, setSttFile] = useState<File | null>(null);
   const [sttStatus, setSttStatus] = useState("");
@@ -1553,8 +1546,7 @@ export default function Dashboard() {
             if (chunk.firstMessage) setAgentIntroSpiel(chunk.firstMessage);
             if (chunk.systemPrompt) setAgentSkillsPrompt(chunk.systemPrompt);
             const selectedVoiceObj = voices.find(v => v.voice_id === selectedVoice);
-            const provider = (selectedVoiceObj as Record<string, unknown>)?.provider as string || '11labs';
-            setAgentVoice(`${provider}:${selectedVoice}`);
+            setAgentVoice(`vapi:${selectedVoice}`);
           }
         } catch {
           /* skip invalid lines */
@@ -2917,13 +2909,11 @@ export default function Dashboard() {
                         onChange={(e) => setAgentVoice(e.target.value)}
                         className="w-full"
                       >
-                        <optgroup label="VAPI Voices">
-                          {voices.filter(v => (v as Record<string, unknown>).provider === 'vapi' || String((v as Record<string, unknown>).provider).includes('vapi')).map((v) => (
-                            <option key={v.voice_id} value={`vapi:${v.voice_id}`}>
-                              {v.name}
-                            </option>
-                          ))}
-                        </optgroup>
+                        {voices.map((v) => (
+                          <option key={v.voice_id} value={`vapi:${v.voice_id}`}>
+                            {v.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div className="field">

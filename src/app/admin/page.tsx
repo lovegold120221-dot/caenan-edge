@@ -345,7 +345,8 @@ export default function AdminPage() {
       const vapi = await vapiRes.json();
       const eleven = await elevenRes.json();
 
-      const sanitizeVoiceBrand = (name: string) => name.replace(/elevenlabs|11labs/gi, "Eburon AI");
+      const sanitizeVoiceBrand = (name: string) =>
+        name.replace(/elevenlabs|11labs|vapi/gi, "Eburon AI");
       const opts: VoiceOption[] = [];
       if (Array.isArray(eleven)) {
         eleven.forEach((v) => {
@@ -360,13 +361,16 @@ export default function AdminPage() {
       if (Array.isArray(vapi)) {
         vapi.forEach((v) => {
           if (v?.voice_id && v?.name) {
-            opts.push({ label: `VAPI - ${v.name}`, value: `vapi:${v.voice_id}` });
+            opts.push({
+              label: `Eburon Voice - ${sanitizeVoiceBrand(String(v.name))}`,
+              value: `vapi:${v.voice_id}`,
+            });
           }
         });
       }
       setVoiceOptions(opts);
     } catch {
-      setVoiceOptions([{ label: "VAPI - Elliot", value: "vapi:Elliot" }]);
+      setVoiceOptions([{ label: "Eburon Voice - Elliot", value: "vapi:Elliot" }]);
     }
   }, [authedFetch]);
 

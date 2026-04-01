@@ -10,11 +10,10 @@
     "smoke": "node scripts/smoke-test.mjs",
     "electron": "electron .",
     "electron:dev": "NODE_ENV=development electron .",
-    "electron:build:mac": "npm run build && electron-builder --mac --publish never",
-    "electron:build:linux": "npm run build && electron-builder --linux --publish never",
-    "electron:build:win": "npm run build && electron-builder --win --publish never",
-    "electron:build:all": "npm run build && electron-builder --mac --linux --win --publish never",
-    "postbuild": "cp -r public .next/standalone/public && cp -r .next/static .next/standalone/.next/static"
+    "electron:build:mac": "electron-builder --mac --publish never",
+    "electron:build:linux": "electron-builder --linux --publish never",
+    "electron:build:win": "electron-builder --win --publish never",
+    "electron:build:all": "electron-builder --mac --linux --win --publish never"
   },
   "dependencies": {
     "@knadh/oat": "^0.4.1",
@@ -51,7 +50,9 @@
     },
     "files": [
       "electron/**/*",
-      "package.json"
+      "build/icon.*",
+      "package.json",
+      "electron/logo.png"
     ],
     "mac": {
       "target": [
@@ -79,7 +80,8 @@
     },
     "linux": {
       "target": [
-        "deb"
+        "deb",
+        "AppImage"
       ],
       "icon": "build/icon.png",
       "category": "Utility",
@@ -100,15 +102,21 @@
     },
     "extraResources": [
       {
-        "from": ".",
-        "to": "app",
+        "from": "supabase",
+        "to": "app/supabase",
         "filter": [
-          ".next/standalone/**/*",
-          ".next/static/**/*",
-          "public/**/*",
-          "package.json"
+          "migrations/**/*",
+          "config.toml",
+          "seed.sql"
         ]
+      },
+      {
+        "from": "electron/setup.html",
+        "to": "setup.html"
       }
-    ]
+    ],
+    "deb": {
+      "afterInstall": "scripts/postinstall-linux.sh"
+    }
   }
 }

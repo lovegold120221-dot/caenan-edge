@@ -100,35 +100,41 @@ export async function syncCaenanCallsToLocal(calls: VapiCall[]): Promise<void> {
       synced_at:            new Date().toISOString(),
     };
 
-    const { error: upsertErr } = await admin
-      .from("caenan_calls")
-      .upsert(callRow, { onConflict: "id" });
+    try {
+      const { error: upsertErr } = await admin
+        .from("caenan_calls")
+        .upsert(callRow, { onConflict: "id" });
 
-    if (upsertErr) {
-      console.error("[sync] caenan_calls upsert error:", upsertErr.message);
-      continue;
-    }
-
-    // Upsert transcript messages only when we have them (avoids wiping on list-only fetches)
-    const messages = extractMessages(call);
-    if (messages.length > 0) {
-      await admin.from("caenan_call_messages").delete().eq("call_id", call.id);
-
-      const messageRows = messages.map((m, i) => ({
-        call_id:      call.id,
-        role:         m.role ?? "unknown",
-        content:      m.message ?? m.content ?? m.transcript ?? null,
-        time_seconds: m.time ?? m.secondsFromStart ?? null,
-        seq:          i,
-      }));
-
-      const { error: msgErr } = await admin
-        .from("caenan_call_messages")
-        .insert(messageRows);
-
-      if (msgErr) {
-        console.error("[sync] caenan_call_messages insert error:", msgErr.message);
+      if (upsertErr) {
+        console.error("[sync] caenan_calls upsert error:", upsertErr.message);
+        continue;
       }
+
+      // Upsert transcript messages only when we have them
+      const messages = extractMessages(call);
+      if (messages.length > 0) {
+        await admin.from("caenan_call_messages").delete().eq("call_id", call.id);
+
+        const messageRows = messages.map((m, i) => ({
+          call_id:      call.id,
+          role:         m.role ?? "unknown",
+          content:      m.message ?? m.content ?? m.transcript ?? null,
+          time_seconds: m.time ?? m.secondsFromStart ?? null,
+          seq:          i,
+        }));
+
+        const { error: msgErr } = await admin
+          .from("caenan_call_messages")
+          .insert(messageRows);
+
+        if (msgErr) {
+          console.error("[sync] caenan_call_messages insert error:", msgErr.message);
+        }
+      }
+    } catch (err) {
+      // Local Supabase unreachable (e.g. running on Vercel) — skip silently
+      console.warn("[sync] local DB unavailable, skipping sync:", err instanceof Error ? err.message : err);
+      return;
     }
   }
 }

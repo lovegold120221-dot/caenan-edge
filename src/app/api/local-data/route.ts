@@ -17,24 +17,35 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Ping — just confirm DB is reachable
+  // Ping — confirm DB is reachable
   if (ping) {
-    return NextResponse.json({ ok: true });
+    try {
+      const { error } = await admin.from("caenan_calls").select("id").limit(1);
+      if (error) return NextResponse.json({ ok: false, error: error.message });
+      return NextResponse.json({ ok: true });
+    } catch (err) {
+      return NextResponse.json({ ok: false, error: err instanceof Error ? err.message : String(err) });
+    }
   }
 
   if (!table || !ALLOWED_TABLES.includes(table)) {
     return NextResponse.json({ error: "Invalid or missing table name." }, { status: 400 });
   }
 
-  const { data, error, count } = await admin
-    .from(table)
-    .select("*", { count: "exact" })
-    .order("created_at", { ascending: false })
-    .limit(100);
+  try {
+    const { data, error, count } = await admin
+      .from(table)
+      .select("*", { count: "exact" })
+      .order("created_at", { ascending: false })
+      .limit(100);
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      return NextResponse.json({ rows: [], count: 0, offline: true, error: error.message });
+    }
+    return NextResponse.json({ rows: data ?? [], count: count ?? 0 });
+  } catch (err) {
+    // Network-level failure (e.g. 127.0.0.1 unreachable on Vercel) — degrade gracefully
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ rows: [], count: 0, offline: true, error: message });
   }
-
-  return NextResponse.json({ rows: data ?? [], count: count ?? 0 });
 }

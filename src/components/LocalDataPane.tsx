@@ -24,9 +24,10 @@ export default function LocalDataPane() {
 
   const checkConnection = useCallback(async () => {
     try {
-      // Ping via our own API route (avoids CORS + localhost vs 127.0.0.1 issues)
-      const res = await fetch(`/api/local-data?table=caenan_calls&ping=1`);
-      setConnected(res.ok || res.status === 400); // 400 = ping param ignored but DB reachable
+      const res = await fetch(`/api/local-data?ping=1`);
+      if (!res.ok) { setConnected(false); return; }
+      const data = await res.json();
+      setConnected(data.ok === true);
     } catch {
       setConnected(false);
     }
@@ -35,14 +36,12 @@ export default function LocalDataPane() {
   const fetchTableData = useCallback(async (tableName: string): Promise<TableData> => {
     try {
       const res = await fetch(`/api/local-data?table=${encodeURIComponent(tableName)}`);
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: res.statusText }));
-        return { name: tableName, rows: [], count: 0, error: err.error ?? res.statusText };
-      }
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (data.offline) return { name: tableName, rows: [], count: 0 };
+      if (!res.ok) return { name: tableName, rows: [], count: 0, error: data.error ?? res.statusText };
       return { name: tableName, rows: data.rows ?? [], count: data.count ?? 0 };
-    } catch (e) {
-      return { name: tableName, rows: [], count: 0, error: String(e) };
+    } catch {
+      return { name: tableName, rows: [], count: 0 };
     }
   }, []);
 

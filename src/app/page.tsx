@@ -62,7 +62,7 @@ const languageDialectMap: Record<string, string[]> = {
 
 // Default agent — Caenan Assistant
 const DEFAULT_SAMPLE_AGENT = {
-  id: "110c9b86-2ea9-423d-a3dd-d5914cfec49b",
+  id: "0bad3e7a-c416-44cc-aedb-08516c7db5bd",
   name: "Caenan Assistant",
 } as const;
 
@@ -118,7 +118,7 @@ const ECHO_MODEL_OPTIONS = [
   { id: "tts/echo_turbo-v2.5", label: TTS_MODEL_LABELS.turbo },
 ] as const;
 const DEFAULT_ECHO_MODEL = ECHO_MODEL_OPTIONS[0].id;
-const WEB_CALL_RING_SRC = "/audio/web-call-ring.mp3";
+const WEB_CALL_RING_SRC = "/audio/webcall-ring.mp3";
 const WEB_CALL_PICKUP_DELAY_MS = 2200;
 
 function sanitizeProviderBranding(message: string) {
@@ -249,7 +249,9 @@ export default function Dashboard() {
       console.warn("Realtime browser call token is missing. Browser calls will not work.");
       return null;
     }
-    return new OrbitCore(token);
+    // Route all Vapi API calls through our server proxy — hides api.vapi.ai from browser devtools
+    const proxyBase = typeof window !== "undefined" ? `${window.location.origin}/api/vapi-proxy` : undefined;
+    return new OrbitCore(token, proxyBase);
   }, []);
 
   useEffect(() => {
@@ -556,7 +558,6 @@ export default function Dashboard() {
       await startWebCallRing();
       await new Promise((resolve) => window.setTimeout(resolve, WEB_CALL_PICKUP_DELAY_MS));
       if (pendingWebCallStartRef.current !== startToken) return;
-      console.log("Starting web call for assistant:", idToUse);
       await orbit.start(idToUse);
     } catch (err) {
       console.error("Failed to start web call:", err);

@@ -5,7 +5,7 @@ import { syncCaenanCallsToLocal } from '@/lib/services/caenan-call-sync';
 
 export const dynamic = 'force-dynamic';
 
-const CAENAN_ASSISTANT_ID = '110c9b86-2ea9-423d-a3dd-d5914cfec49b';
+const CAENAN_ASSISTANT_ID = '0bad3e7a-c416-44cc-aedb-08516c7db5bd';
 
 export async function GET(request: Request) {
   const startedAtMs = Date.now();

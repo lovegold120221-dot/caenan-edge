@@ -332,7 +332,9 @@ function createMainWindow() {
     show: false,
   });
 
-  mainWindow.loadURL(APP_URL);
+  // Pass Supabase port to web app via query param
+  const urlWithPort = `${APP_URL}?supabasePort=${supabasePort}`;
+  mainWindow.loadURL(urlWithPort);
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
     setupWindow?.close();

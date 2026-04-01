@@ -18,7 +18,10 @@
 /out/
 
 # production
-/build
+# /build is intentionally tracked (icons, entitlements for electron-builder)
+
+# electron build output
+/dist
 
 # misc
 .DS_Store

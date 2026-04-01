@@ -7,10 +7,7 @@ const ALLOWED_TABLES = ["caenan_calls", "caenan_call_messages", "tts_history", "
 
 export async function GET(request: NextRequest) {
   const table = request.nextUrl.searchParams.get("table");
-
-  if (!table || !ALLOWED_TABLES.includes(table)) {
-    return NextResponse.json({ error: "Invalid or missing table name." }, { status: 400 });
-  }
+  const ping  = request.nextUrl.searchParams.get("ping");
 
   const admin = getSupabaseAdminClient();
   if (!admin) {
@@ -18,6 +15,15 @@ export async function GET(request: NextRequest) {
       { error: "Local Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY." },
       { status: 503 }
     );
+  }
+
+  // Ping — just confirm DB is reachable
+  if (ping) {
+    return NextResponse.json({ ok: true });
+  }
+
+  if (!table || !ALLOWED_TABLES.includes(table)) {
+    return NextResponse.json({ error: "Invalid or missing table name." }, { status: 400 });
   }
 
   const { data, error, count } = await admin

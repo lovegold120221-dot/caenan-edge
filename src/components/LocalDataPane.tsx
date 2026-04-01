@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from "react";
 import { Database, RefreshCw, ExternalLink, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 
 const LOCAL_SUPABASE_STUDIO = "http://localhost:54323";
-const LOCAL_SUPABASE_API    = "http://localhost:54321";
 
 type TableRow = Record<string, unknown>;
 
@@ -25,8 +24,9 @@ export default function LocalDataPane() {
 
   const checkConnection = useCallback(async () => {
     try {
-      const res = await fetch(`${LOCAL_SUPABASE_API}/rest/v1/`, { method: "HEAD" });
-      setConnected(res.ok || res.status === 404); // 404 = running but no anon key, still up
+      // Ping via our own API route (avoids CORS + localhost vs 127.0.0.1 issues)
+      const res = await fetch(`/api/local-data?table=caenan_calls&ping=1`);
+      setConnected(res.ok || res.status === 400); // 400 = ping param ignored but DB reachable
     } catch {
       setConnected(false);
     }

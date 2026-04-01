@@ -22,12 +22,15 @@ export default function LocalDataPane() {
   const [activeTable, setActiveTable] = useState<string>(TABLES[0]);
   const [loading, setLoading]         = useState(false);
 
+  // Ping local Supabase directly from the browser — Electron can reach 127.0.0.1,
+  // Vercel cannot. This gives the correct "is it running on this machine" answer.
   const checkConnection = useCallback(async () => {
     try {
-      const res = await fetch(`/api/local-data?ping=1`);
-      if (!res.ok) { setConnected(false); return; }
-      const data = await res.json();
-      setConnected(data.ok === true);
+      const res = await fetch('http://127.0.0.1:54321/rest/v1/', {
+        method: 'GET',
+        signal: AbortSignal.timeout(3000),
+      });
+      setConnected(res.ok || res.status === 401); // 401 = DB up, just needs auth
     } catch {
       setConnected(false);
     }

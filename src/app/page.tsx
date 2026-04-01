@@ -1787,7 +1787,7 @@ export default function Dashboard() {
               src="/images/logo.png"
               alt="Caenan"
             />
-            <h1>Caenan Local Edge</h1>
+
           </div>
 
           <div className="auth-tabs">
@@ -1885,9 +1885,7 @@ export default function Dashboard() {
               src="/images/logo.png"
               alt="Caenan"
             />
-            <div>
-              <div className="brand-name">Caenan Local Edge</div>
-            </div>
+
           </div>
 
           <nav className="nav-menu">

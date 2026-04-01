@@ -79,12 +79,25 @@
     },
     "linux": {
       "target": [
-        "deb",
-        "AppImage"
+        {
+          "target": "deb",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
       ],
       "icon": "build/icon.png",
       "category": "Utility",
-      "description": "Caenan Local Edge \u2014 AI Voice Agent Console"
+      "description": "Caenan Local Edge \u2014 AI Voice Agent Console",
+      "executableName": "caenan-local-edge"
     },
     "win": {
       "target": [

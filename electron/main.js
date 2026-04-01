@@ -8,12 +8,15 @@ const path  = require('path');
 const fs    = require('fs');
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const APP_URL      = 'https://echolab.eburon.ai/';
+const APP_URL      = 'https://echolab.eburon.ai/dashboard';
 const SETUP_FLAG   = path.join(app.getPath('userData'), 'setup-complete');
 // Supabase project dir: bundled in extraResources/app/supabase (packaged) or repo root (dev)
 const SUPABASE_DIR = app.isPackaged
   ? path.join(process.resourcesPath, 'app', 'supabase')
   : path.join(__dirname, '..', 'supabase');
+
+// Store dynamic Supabase port (parsed from `supabase status`)
+let supabasePort = 54321; // default
 
 // ─── Windows ──────────────────────────────────────────────────────────────────
 let mainWindow   = null;
@@ -71,6 +74,20 @@ function isInstalled(bin) {
     );
     return true;
   } catch { return false; }
+}
+
+/** Parse the Supabase API port from `supabase status` output. Returns port number or null. */
+function getSupabasePort() {
+  try {
+    const output = execSync('supabase status', { cwd: SUPABASE_DIR, env: buildEnv(), stdio: 'pipe' }).toString();
+    // Look for "Project URL │ http://127.0.0.1:XXXXX"
+    const match = output.match(/Project URL\s*│\s*http:\/\/127\.0\.0\.1:(\d+)/);
+    if (match) return parseInt(match[1], 10);
+    // Fallback: look for any 127.0.0.1:port pattern
+    const fallback = output.match(/127\.0\.0\.1:(\d+)/);
+    if (fallback) return parseInt(fallback[1], 10);
+  } catch { /* status failed */ }
+  return null;
 }
 
 // ─── Setup steps ──────────────────────────────────────────────────────────────
@@ -256,8 +273,9 @@ async function startServicesAndOpen() {
     spawn('ollama', ['serve'], { env, detached: true, stdio: 'ignore' }).unref();
   }
 
-  // If Supabase was already running, open immediately
+  // If Supabase was already running, get port and open immediately
   if (supabaseRunning) {
+    supabasePort = getSupabasePort() || 54321;
     createMainWindow();
     return;
   }
@@ -282,6 +300,9 @@ async function startServicesAndOpen() {
       break; // running
     } catch { /* still starting */ }
   }
+
+  // Get the actual port Supabase is using
+  supabasePort = getSupabasePort() || 54321;
 
   createMainWindow();
   mainWindow.once('ready-to-show', () => splash.close());

@@ -22,6 +22,8 @@ export default function LocalDataPane() {
   const [activeTable, setActiveTable] = useState<string>(TABLES[0]);
   const [loading, setLoading]         = useState(false);
 
+  const [retrying, setRetrying] = useState(false);
+
   // Ping local Supabase directly from the browser — Electron can reach 127.0.0.1,
   // Vercel cannot. This gives the correct "is it running on this machine" answer.
   const checkConnection = useCallback(async () => {
@@ -31,9 +33,34 @@ export default function LocalDataPane() {
         signal: AbortSignal.timeout(3000),
       });
       setConnected(res.ok || res.status === 401); // 401 = DB up, just needs auth
+      return res.ok || res.status === 401;
     } catch {
       setConnected(false);
+      return false;
     }
+  }, []);
+
+  // Auto-retry every 5 s for up to 90 s after app launch (Supabase takes ~15-30 s to start)
+  useEffect(() => {
+    let attempts = 0;
+    const MAX = 18; // 18 × 5 s = 90 s
+    let timer: ReturnType<typeof setTimeout>;
+
+    const tryConnect = async () => {
+      const ok = await checkConnection();
+      if (!ok && attempts < MAX) {
+        attempts++;
+        setRetrying(true);
+        timer = setTimeout(tryConnect, 5000);
+      } else {
+        setRetrying(false);
+        if (ok) loadAllTables();
+      }
+    };
+
+    tryConnect();
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchTableData = useCallback(async (tableName: string): Promise<TableData> => {
@@ -54,11 +81,6 @@ export default function LocalDataPane() {
     setTables(results);
     setLoading(false);
   }, [fetchTableData]);
-
-  useEffect(() => {
-    checkConnection();
-    loadAllTables();
-  }, [checkConnection, loadAllTables]);
 
   const current = tables.find((t) => t.name === activeTable);
   const columns = current?.rows?.[0] ? Object.keys(current.rows[0]) : [];
@@ -102,10 +124,17 @@ export default function LocalDataPane() {
       {/* Connection info box when offline */}
       {connected === false && (
         <div className="p-3 rounded-lg border border-bad/30 bg-bad/5 text-xs" style={{ lineHeight: 1.6 }}>
-          <strong>Local Supabase is not running.</strong> Start it with:
-          <pre style={{ margin: "0.5rem 0 0", background: "rgba(0,0,0,0.3)", padding: "0.5rem", borderRadius: "0.25rem" }}>
-            supabase start
-          </pre>
+          {retrying ? (
+            <span style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <Loader2 size={13} className="animate-spin" />
+              Starting local services… this may take up to 60 s on first launch.
+            </span>
+          ) : (
+            <>
+              <strong>Local Supabase is not running.</strong> It should start automatically with the app.
+              Click refresh to retry, or run <code style={{ background: "rgba(0,0,0,0.3)", padding: "0 4px", borderRadius: 3 }}>supabase start</code> manually.
+            </>
+          )}
         </div>
       )}
 

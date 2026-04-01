@@ -209,19 +209,54 @@ async function runSetup(sender) {
   await sleep(2000);
 }
 
-/** Quick service-restart on subsequent launches (non-blocking). */
-function startServices() {
+/** Wait for Supabase to be reachable, then open main window. */
+async function startServicesAndOpen() {
   const env = buildEnv();
-  // Supabase
-  try { execSync('supabase status', { cwd: SUPABASE_DIR, env, stdio: 'pipe' }); }
-  catch {
+
+  // Start Supabase if not running
+  let supabaseRunning = false;
+  try {
+    execSync('supabase status', { cwd: SUPABASE_DIR, env, stdio: 'pipe' });
+    supabaseRunning = true;
+  } catch {
     spawn('supabase', ['start'], { cwd: SUPABASE_DIR, env, detached: true, stdio: 'ignore' }).unref();
   }
-  // Ollama serve
+
+  // Start Ollama if not running
   try { execSync('curl -s http://localhost:11434', { stdio: 'pipe' }); }
   catch {
     spawn('ollama', ['serve'], { env, detached: true, stdio: 'ignore' }).unref();
   }
+
+  // If Supabase was already running, open immediately
+  if (supabaseRunning) {
+    createMainWindow();
+    return;
+  }
+
+  // Show a minimal splash while Supabase starts (up to 90 s)
+  const splash = new BrowserWindow({
+    width: 420, height: 220, frame: false, resizable: false, center: true,
+    backgroundColor: '#0a0a0a', alwaysOnTop: true,
+    webPreferences: { nodeIntegration: false, contextIsolation: true },
+  });
+  splash.loadURL(`data:text/html,<body style="margin:0;background:#0a0a0a;color:#fff;font-family:system-ui;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:12px">
+    <svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="none" stroke="#4ade80" stroke-width="3" stroke-dasharray="56 28"><animateTransform attributeName="transform" type="rotate" from="0 20 20" to="360 20 20" dur="1s" repeatCount="indefinite"/></circle></svg>
+    <div style="font-size:15px;font-weight:600">Starting Caenan Local Edge</div>
+    <div style="font-size:12px;opacity:.5">Starting local services…</div>
+  </body>`);
+
+  // Poll until Supabase is up (max 90 s)
+  for (let i = 0; i < 45; i++) {
+    await sleep(2000);
+    try {
+      execSync('supabase status', { cwd: SUPABASE_DIR, env, stdio: 'pipe' });
+      break; // running
+    } catch { /* still starting */ }
+  }
+
+  createMainWindow();
+  mainWindow.once('ready-to-show', () => splash.close());
 }
 
 // ─── Main window ──────────────────────────────────────────────────────────────
@@ -319,8 +354,7 @@ app.whenReady().then(() => {
   if (firstRun) {
     createSetupWindow();
   } else {
-    startServices();
-    createMainWindow();
+    startServicesAndOpen();
   }
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow();

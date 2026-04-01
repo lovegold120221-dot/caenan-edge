@@ -2,15 +2,17 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { jwtVerify, decodeJwt } from 'jose';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+// Local Supabase defaults (hardcoded so no Vercel env vars needed for Supabase)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
 const supabaseAnonKey =
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY ||
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-  '';
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
 
-// JWT secret for local-first verification (avoids calling 127.0.0.1 from Vercel).
-// Set SUPABASE_JWT_SECRET in Vercel env vars to match your local Supabase JWT secret.
-const jwtSecret = process.env.SUPABASE_JWT_SECRET || '';
+// Local Supabase default JWT secret
+const jwtSecret =
+  process.env.SUPABASE_JWT_SECRET ||
+  'super-secret-jwt-token-with-at-least-32-characters-long';
 
 /**
  * Verify a Supabase JWT locally using the JWT secret — no HTTP call to Supabase needed.

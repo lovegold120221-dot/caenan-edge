@@ -55,28 +55,51 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'assistantId and name are required' }, { status: 400 });
     }
 
-    const { data, error } = await supabase
+    // Check if agent already exists for this user
+    const { data: existing } = await supabase
       .from('user_agents')
-      .insert({
-        user_id: userId,
-        assistant_id: assistantId,
-        name,
-        phone_number_id: phoneNumberId || null,
-        voice_provider: voiceProvider || 'vapi',
-        voice_id: voiceId || null,
-        language: language || 'multilingual',
-        first_message: firstMessage || null,
-        system_prompt: systemPrompt || null,
-      })
-      .select()
+      .select('id')
+      .eq('user_id', userId)
+      .eq('assistant_id', assistantId)
       .single();
+
+    const agentData = {
+      user_id: userId,
+      assistant_id: assistantId,
+      name,
+      phone_number_id: phoneNumberId || null,
+      voice_provider: voiceProvider || 'vapi',
+      voice_id: voiceId || null,
+      language: language || 'multilingual',
+      first_message: firstMessage || null,
+      system_prompt: systemPrompt || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    let data, error;
+    if (existing?.id) {
+      // Update existing
+      ({ data, error } = await supabase
+        .from('user_agents')
+        .update(agentData)
+        .eq('id', existing.id)
+        .select()
+        .single());
+    } else {
+      // Insert new
+      ({ data, error } = await supabase
+        .from('user_agents')
+        .insert(agentData)
+        .select()
+        .single());
+    }
 
     if (error) {
       console.error('[user-agents POST] Supabase error:', error);
       throw error;
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json({ id: assistantId, ...data });
   } catch (error: unknown) {
     console.error('[user-agents POST] Error:', error);
     const message = error instanceof Error ? error.message : 'Failed to save agent';

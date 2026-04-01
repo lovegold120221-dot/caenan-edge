@@ -1188,18 +1188,19 @@ export default function Dashboard() {
     setIsFetchingBases(true);
     setAgentBasesError(null);
     try {
-      const res = await authedFetch("/api/orbit/assistants");
+      // Fetch from Supabase user_agents table instead of Vapi
+      const res = await authedFetch("/api/user-agents");
       const data = await res.json();
       if (!res.ok) {
-        const msg = typeof data?.error === 'string' ? data.error : 'Failed to load templates';
+        const msg = typeof data?.error === 'string' ? data.error : 'Failed to load agents';
         setAgentBasesError(msg);
         setAgentBases([]);
         return;
       }
       setAgentBases(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("Failed to fetch bases:", error);
-      setAgentBasesError("Could not load templates. Check your API key.");
+      console.error("Failed to fetch agents:", error);
+      setAgentBasesError("Could not load agents from database.");
       setAgentBases([]);
     } finally {
       setIsFetchingBases(false);
@@ -1212,43 +1213,34 @@ export default function Dashboard() {
     }
   }, [activeTab, fetchAgentBases]);
 
-  // Load agent form defaults: Gregory-inbound from VAPI, or the user's own assistant
+  // Load agent form defaults from Supabase user_agents
   const loadAgentFormDefaults = useCallback(async () => {
     if (!user) return;
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const [userRes, assistantsRes] = await Promise.all([
-        fetch("/api/user-assistant", {
-          headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
-        }),
-        authedFetch("/api/orbit/assistants", { cache: "no-store" }),
+      const [userRes, agentsRes] = await Promise.all([
+        authedFetch("/api/user-assistant"),
+        authedFetch("/api/user-agents", { cache: "no-store" }),
       ]);
       const userData = await userRes.json();
-      const assistantsRaw = await assistantsRes.json();
-      const assistants = Array.isArray(assistantsRaw) ? assistantsRaw : [];
+      const agentsRaw = await agentsRes.json();
+      const agents = Array.isArray(agentsRaw) ? agentsRaw : [];
       const myAssistantId = userData?.assistantId ?? null;
       setUserAssistantId(myAssistantId);
 
-      const gregory = assistants.find((a: { id?: string }) => a.id === DEFAULT_SAMPLE_AGENT.id)
-        ?? assistants.find((a: { name?: string }) => /gregory/i.test(a.name || ""));
-      const defaultAssistant = myAssistantId
-        ? assistants.find((a: { id?: string }) => a.id === myAssistantId) ?? gregory
-        : gregory;
+      // Find Caenan assistant or user's own
+      const caenan = agents.find((a: { id?: string }) => a.id === DEFAULT_SAMPLE_AGENT.id)
+        ?? agents.find((a: { name?: string }) => /caenan/i.test(a.name || ""));
+      const defaultAgent = myAssistantId
+        ? agents.find((a: { id?: string }) => a.id === myAssistantId) ?? caenan
+        : caenan;
 
-      if (defaultAssistant?.id) {
-        const detailRes = await authedFetch(`/api/orbit/assistants/${defaultAssistant.id}`, { cache: "no-store" });
-        const detail = await detailRes.json();
-        if (detail?.id) {
-          const sysMsg = detail.model?.messages?.find((m: { role?: string }) => m.role === "system");
-          setNewAgentName(detail.name || DEFAULT_AGENT_NAME);
-          setAgentIntroSpiel(detail.firstMessage || DEFAULT_AGENT_INTRO);
-          setAgentSkillsPrompt(sysMsg?.content || DEFAULT_AGENT_SKILLS);
-          const lang = detail.transcriber?.language;
-          setAgentLanguage(lang === "multi" ? "multilingual" : lang || "multilingual");
-          const v = detail.voice;
-          if (v?.provider && v?.voiceId) {
-            setAgentVoice(`${v.provider}:${v.voiceId}`);
-          }
+      if (defaultAgent) {
+        setNewAgentName(defaultAgent.name || DEFAULT_AGENT_NAME);
+        setAgentIntroSpiel(defaultAgent.firstMessage || DEFAULT_AGENT_INTRO);
+        setAgentSkillsPrompt(defaultAgent.systemPrompt || DEFAULT_AGENT_SKILLS);
+        setAgentLanguage(defaultAgent.language === "multi" ? "multilingual" : defaultAgent.language || "multilingual");
+        if (defaultAgent.voiceProvider && defaultAgent.voiceId) {
+          setAgentVoice(`${defaultAgent.voiceProvider}:${defaultAgent.voiceId}`);
         }
       }
     } catch {
@@ -1259,11 +1251,10 @@ export default function Dashboard() {
   const fetchUserAgents = useCallback(async () => {
     if (!user) return;
     try {
-      const res = await authedFetch("/api/orbit/assistants", { cache: "no-store" });
+      const res = await authedFetch("/api/user-agents", { cache: "no-store" });
       const data = await res.json();
       if (Array.isArray(data)) {
-        const myAgents = data.filter((a: { userId?: string }) => a.userId === user.id);
-        setUserAgents(myAgents);
+        setUserAgents(data);
       }
     } catch (error) {
       console.error("Failed to fetch user agents:", error);
@@ -1277,10 +1268,15 @@ export default function Dashboard() {
     }
   }, [activeTab, user, loadAgentFormDefaults, fetchUserAgents]);
 
-  // Show only the default Caenan Assistant — hide all other agents
+  // Show only the Caenan Assistant from server-fetched list
   const displayAgents = useMemo(() => {
+    // Find Caenan assistant from fetched agents, fall back to default
+    const caenan = agentBases.find((a) => a.id === DEFAULT_SAMPLE_AGENT.id)
+      ?? agentBases.find((a) => /caenan/i.test(a.name || ''));
+    if (caenan) return [caenan];
+    // If not found in fetched list, show default
     return [{ ...DEFAULT_SAMPLE_AGENT }];
-  }, []);
+  }, [agentBases]);
 
   const [showUserProfile, setShowUserProfile] = useState(false);
 
@@ -1644,48 +1640,47 @@ export default function Dashboard() {
     try {
       const voiceParts = agentVoice.split(":");
       const voice = voiceParts.length >= 2
-        ? { provider: voiceParts[0] as "vapi" | "11labs", voiceId: voiceParts.slice(1).join(":") }
-        : undefined;
-      const body: Record<string, unknown> = {
+        ? { provider: voiceParts[0], voiceId: voiceParts.slice(1).join(":") }
+        : { provider: "vapi", voiceId: "Elliot" };
+
+      // Save to Supabase user_agents instead of Vapi
+      const assistantId = isUpdate ? userAssistantId : crypto.randomUUID();
+      const body = {
+        assistantId,
         name: newAgentName.trim(),
-        firstMessage: agentIntroSpiel.trim() || undefined,
-        systemPrompt: agentSkillsPrompt.trim() || "You are a helpful AI assistant.",
+        phoneNumberId: selectedAgentPhoneNumberId || null,
+        voiceProvider: voice.provider,
+        voiceId: voice.voiceId,
         language: agentLanguage,
-        voice,
+        firstMessage: agentIntroSpiel.trim() || null,
+        systemPrompt: agentSkillsPrompt.trim() || "You are a helpful AI assistant.",
       };
-      if (selectedAgentPhoneNumberId) body.phoneNumberId = selectedAgentPhoneNumberId;
-      if (isUpdate) body.assistantId = userAssistantId;
-      if (agentKnowledgeFiles.length > 0) {
-        body.fileIds = agentKnowledgeFiles.map((f) => f.id);
-      }
-      const res = await fetch("/api/orbit/agents", {
+
+      const res = await authedFetch("/api/user-agents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || (isUpdate ? "Agent update failed" : "Agent creation failed"));
-      const assistantId = data.id;
+
       setAgentStatus(isUpdate ? "Agent updated! Loading into dialer." : "Agent created! Loading into dialer.");
       setAgentKnowledgeFiles([]);
       setSelectedDialerAgentId(assistantId);
       setUserAssistantId(assistantId);
       setAgentBases((prev) => {
         const exists = prev.some((a) => a.id === assistantId);
-        if (exists) return prev.map((a) => a.id === assistantId ? { ...a, name: data.name || newAgentName } : a);
-        return [...prev, { id: assistantId, name: data.name || newAgentName }];
+        if (exists) return prev.map((a) => a.id === assistantId ? { ...a, name: body.name } : a);
+        return [...prev, { id: assistantId, name: body.name }];
       });
-      if (!isUpdate) {
-        const { data: { session } } = await supabase.auth.getSession();
-        await fetch("/api/user-assistant", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-          },
-          body: JSON.stringify({ assistantId }),
-        });
-      }
+
+      // Also update user-assistant reference
+      await authedFetch("/api/user-assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assistantId }),
+      });
+
       fetchAgentBases();
     } catch (error) {
       console.error(error);
@@ -1699,23 +1694,22 @@ export default function Dashboard() {
     if (!user) return;
     setIsCreatingAgent(true);
     try {
-      const res = await authedFetch(`/api/orbit/assistants/${agentId}`, { cache: "no-store" });
-      const detail = await res.json();
-      if (!res.ok || !detail?.id) throw new Error(detail?.error || "Failed to load agent");
+      // Fetch from local Supabase user_agents
+      const res = await authedFetch("/api/user-agents", { cache: "no-store" });
+      const agents = await res.json();
+      const detail = Array.isArray(agents) ? agents.find((a: { id?: string }) => a.id === agentId) : null;
+      if (!detail) throw new Error("Agent not found");
+      
       setNewAgentName(detail.name || "");
       setAgentIntroSpiel(detail.firstMessage || "");
-      const sysMsg = detail.model?.messages?.find((m: { role?: string }) => m.role === "system");
-      setAgentSkillsPrompt(sysMsg?.content || "");
-      const lang = detail.transcriber?.language;
-      setAgentLanguage(lang === "multi" ? "multilingual" : lang || "multilingual");
-      const v = detail.voice;
-      if (v?.provider && v?.voiceId) {
-        setAgentVoice(`${v.provider}:${v.voiceId}`);
+      setAgentSkillsPrompt(detail.systemPrompt || "");
+      setAgentLanguage(detail.language === "multi" ? "multilingual" : detail.language || "multilingual");
+      if (detail.voiceProvider && detail.voiceId) {
+        setAgentVoice(`${detail.voiceProvider}:${detail.voiceId}`);
       } else {
         setAgentVoice("vapi:Elliot");
       }
-      const pnId = detail.phoneNumberId || detail.phoneNumber?.id;
-      if (pnId) setSelectedAgentPhoneNumberId(pnId);
+      if (detail.phoneNumberId) setSelectedAgentPhoneNumberId(detail.phoneNumberId);
       setUserAssistantId(agentId);
       setEditingAgentId(agentId);
       setActiveTab("pane-Create");
@@ -1733,7 +1727,12 @@ export default function Dashboard() {
     if (!confirm("Delete this agent? This cannot be undone.")) return;
     setIsDeletingAgent(agentId);
     try {
-      const res = await authedFetch(`/api/orbit/assistants/${agentId}`, { method: "DELETE" });
+      // Delete from local Supabase
+      const res = await authedFetch("/api/user-agents", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assistantId: agentId }),
+      });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error((data as { error?: string })?.error || "Failed to delete agent");

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createSupabaseClientFromRequest } from "@/lib/supabase-server";
+import { getUserIdFromRequest } from "@/lib/supabase-server";
+import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
 export const dynamic = "force-dynamic";
 
@@ -11,11 +12,11 @@ type UsageRow = {
 };
 
 async function getAuthedSupabase(request: Request) {
-  const supabase = createSupabaseClientFromRequest(request);
-  if (!supabase) return null;
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user?.id) return null;
-  return { supabase, userId: data.user.id };
+  const userId = await getUserIdFromRequest(request);
+  if (!userId) return null;
+  const admin = getSupabaseAdminClient();
+  if (!admin) return null;
+  return { admin, userId };
 }
 
 export async function GET(request: Request) {
@@ -27,9 +28,10 @@ export async function GET(request: Request) {
   const days = Number.isFinite(rawDays) ? Math.min(Math.max(rawDays, 1), 90) : 7;
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
-  const { data, error } = await auth.supabase
+  const { data, error } = await auth.admin
     .from("api_usage")
     .select("endpoint, status_code, latency_ms, created_at")
+    .eq("user_id", auth.userId)
     .gte("created_at", since)
     .order("created_at", { ascending: false })
     .limit(5000);

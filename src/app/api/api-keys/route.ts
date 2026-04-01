@@ -1,24 +1,26 @@
 import { NextResponse } from "next/server";
-import { createSupabaseClientFromRequest } from "@/lib/supabase-server";
+import { getUserIdFromRequest } from "@/lib/supabase-server";
+import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { generateApiKeyForUser, getApiKeyPrefix, hashApiKey } from "@/lib/api-key-auth";
 
 export const dynamic = "force-dynamic";
 
 async function getAuthedUser(request: Request) {
-  const supabase = createSupabaseClientFromRequest(request);
-  if (!supabase) return null;
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user?.id) return null;
-  return { supabase, userId: data.user.id };
+  const userId = await getUserIdFromRequest(request);
+  if (!userId) return null;
+  const admin = getSupabaseAdminClient();
+  if (!admin) return null;
+  return { admin, userId };
 }
 
 export async function GET(request: Request) {
   const auth = await getAuthedUser(request);
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data, error } = await auth.supabase
+  const { data, error } = await auth.admin
     .from("api_keys")
     .select("id, name, key_prefix, created_at, last_used_at, revoked_at")
+    .eq("user_id", auth.userId)
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -39,7 +41,7 @@ export async function POST(request: Request) {
   const keyHash = hashApiKey(rawApiKey);
   const keyPrefix = getApiKeyPrefix(rawApiKey);
 
-  const { data, error } = await auth.supabase
+  const { data, error } = await auth.admin
     .from("api_keys")
     .insert({
       user_id: auth.userId,
@@ -52,10 +54,6 @@ export async function POST(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // rawApiKey is returned only once. Store it securely on the client side.
-  return NextResponse.json({
-    key: data,
-    rawApiKey,
-  });
+  return NextResponse.json({ key: data, rawApiKey });
 }
 

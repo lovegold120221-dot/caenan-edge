@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdminClient } from '@/lib/supabase-admin';
+import { getUserIdFromRequest } from '@/lib/supabase-server';
 
 function admin() {
   const client = getSupabaseAdminClient();
@@ -10,17 +11,13 @@ function admin() {
 export async function GET(req: Request) {
   try {
     const supabase = admin();
-    const authHeader = req.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
-    if (authErr || !user) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    const userId = await getUserIdFromRequest(req);
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { data, error } = await supabase
       .from('user_agents')
       .select('id, assistant_id, name, phone_number_id, phone_number, voice_provider, voice_id, language, first_message, system_prompt, created_at, updated_at')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -48,12 +45,8 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const supabase = admin();
-    const authHeader = req.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
-    if (authErr || !user) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    const userId = await getUserIdFromRequest(req);
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
     const { assistantId, name, phoneNumberId, voiceProvider, voiceId, language, firstMessage, systemPrompt } = body;
@@ -62,12 +55,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'assistantId and name are required' }, { status: 400 });
     }
 
-    console.log('[user-agents POST] Inserting:', { userId: user.id, assistantId, name, voiceProvider });
-
     const { data, error } = await supabase
       .from('user_agents')
       .insert({
-        user_id: user.id,
+        user_id: userId,
         assistant_id: assistantId,
         name,
         phone_number_id: phoneNumberId || null,
@@ -85,7 +76,6 @@ export async function POST(req: Request) {
       throw error;
     }
 
-    console.log('[user-agents POST] Success:', data);
     return NextResponse.json(data);
   } catch (error: unknown) {
     console.error('[user-agents POST] Error:', error);
@@ -97,12 +87,8 @@ export async function POST(req: Request) {
 export async function DELETE(req: Request) {
   try {
     const supabase = admin();
-    const authHeader = req.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
-    if (authErr || !user) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    const userId = await getUserIdFromRequest(req);
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { assistantId } = await req.json();
     if (!assistantId) return NextResponse.json({ error: 'assistantId required' }, { status: 400 });
@@ -110,7 +96,7 @@ export async function DELETE(req: Request) {
     const { error } = await supabase
       .from('user_agents')
       .delete()
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('assistant_id', assistantId);
 
     if (error) throw error;

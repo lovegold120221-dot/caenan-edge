@@ -1,27 +1,28 @@
 import { NextResponse } from "next/server";
-import { createSupabaseClientFromRequest } from "@/lib/supabase-server";
+import { getUserIdFromRequest } from "@/lib/supabase-server";
+import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
 export const dynamic = "force-dynamic";
 
-async function getAuthedSupabase(request: Request) {
-  const supabase = createSupabaseClientFromRequest(request);
-  if (!supabase) return null;
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user?.id) return null;
-  return { supabase, userId: data.user.id };
+async function getAuthedAdmin(request: Request) {
+  const userId = await getUserIdFromRequest(request);
+  if (!userId) return null;
+  const admin = getSupabaseAdminClient();
+  if (!admin) return null;
+  return { admin, userId };
 }
 
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await getAuthedSupabase(request);
+  const auth = await getAuthedAdmin(request);
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
   if (!id) return NextResponse.json({ error: "Key ID required" }, { status: 400 });
 
-  const { data, error } = await auth.supabase
+  const { data, error } = await auth.admin
     .from("api_keys")
     .update({ revoked_at: new Date().toISOString() })
     .eq("id", id)

@@ -1,22 +1,19 @@
 import { NextResponse } from 'next/server';
-import { createSupabaseClientFromRequest } from '@/lib/supabase-server';
+import { getUserIdFromRequest } from '@/lib/supabase-server';
+import { getSupabaseAdminClient } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  const supabase = createSupabaseClientFromRequest(request);
-  if (!supabase) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const userId = await getUserIdFromRequest(request);
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const admin = getSupabaseAdminClient();
+  if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    const { data, error } = await supabase
+    const { data, error } = await admin
       .from('user_assistants')
       .select('assistant_id')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single();
     if (error && error.code !== 'PGRST116') {
       console.error('[user-assistant]', error);
@@ -30,24 +27,20 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const supabase = createSupabaseClientFromRequest(request);
-  if (!supabase) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const userId = await getUserIdFromRequest(request);
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const admin = getSupabaseAdminClient();
+  if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
     const body = await request.json();
     const assistantId = body?.assistantId;
     if (!assistantId || typeof assistantId !== 'string') {
       return NextResponse.json({ error: 'assistantId required' }, { status: 400 });
     }
-    const { error } = await supabase
+    const { error } = await admin
       .from('user_assistants')
       .upsert(
-        { user_id: user.id, assistant_id: assistantId, updated_at: new Date().toISOString() },
+        { user_id: userId, assistant_id: assistantId, updated_at: new Date().toISOString() },
         { onConflict: 'user_id' }
       );
     if (error) {

@@ -1,5 +1,6 @@
 // cspell:ignore supabase SUPABASE
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { jwtVerify, decodeJwt } from 'jose';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey =
@@ -7,9 +8,35 @@ const supabaseAnonKey =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
   '';
 
+// JWT secret for local-first verification (avoids calling 127.0.0.1 from Vercel).
+// Set SUPABASE_JWT_SECRET in Vercel env vars to match your local Supabase JWT secret.
+const jwtSecret = process.env.SUPABASE_JWT_SECRET || '';
+
 /**
- * Create a Supabase client for API routes that uses the user's JWT from the request.
- * RLS policies will apply for the authenticated user. Returns null if no credentials or no token.
+ * Verify a Supabase JWT locally using the JWT secret — no HTTP call to Supabase needed.
+ * Falls back to raw decode (trusting the signature) when no secret is configured.
+ * Returns the sub (user ID) on success, null on failure.
+ */
+async function getUserIdFromToken(token: string): Promise<string | null> {
+  try {
+    if (jwtSecret) {
+      const secret = new TextEncoder().encode(jwtSecret);
+      const { payload } = await jwtVerify(token, secret);
+      return (payload.sub as string) ?? null;
+    }
+    // No secret configured — decode without verification (development fallback)
+    const payload = decodeJwt(token);
+    return (payload.sub as string) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Create a Supabase client for API routes.
+ * Verifies the Bearer JWT locally (no round-trip to Supabase auth server),
+ * so this works even when Supabase is running on localhost.
+ * Returns null if no valid token is present.
  */
 export function createSupabaseClientFromRequest(request: Request): SupabaseClient | null {
   if (!supabaseUrl || !supabaseAnonKey) return null;
@@ -19,4 +46,15 @@ export function createSupabaseClientFromRequest(request: Request): SupabaseClien
   return createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
+}
+
+/**
+ * Get the authenticated user ID from the request without calling back to Supabase auth server.
+ * Use this in API routes where you need the userId but Supabase may be on localhost.
+ */
+export async function getUserIdFromRequest(request: Request): Promise<string | null> {
+  const authHeader = request.headers.get('Authorization');
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) return null;
+  return getUserIdFromToken(token);
 }

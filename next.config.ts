@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
-  output: process.env.NEXT_OUTPUT === 'standalone' ? 'standalone' : undefined,
+  output: 'standalone',
   // Increase payload size limit for audio uploads
   experimental: {
     serverActions: {

@@ -1,13 +1,90 @@
 'use strict';
 
-const { app, BrowserWindow, shell, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, dialog, shell, Tray, Menu, nativeImage } = require('electron');
+const { fork, execSync, spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
-const APP_URL = 'https://caenan-edge.vercel.app/';
+const PORT = 3000;
+const APP_URL = `http://localhost:${PORT}`;
 
 let mainWindow = null;
+let serverProcess = null;
 let tray = null;
+
+// ── Resolve paths ─────────────────────────────────────────────────────────────
+// In packaged app, resources are at process.resourcesPath/app
+const APP_ROOT = app.isPackaged
+  ? path.join(process.resourcesPath, 'app')
+  : path.join(__dirname, '..');
+
+// ── Start Supabase (non-blocking) ─────────────────────────────────────────────
+function tryStartSupabase() {
+  try {
+    execSync('supabase status', { cwd: APP_ROOT, timeout: 5000, stdio: 'pipe' });
+    console.log('[caenan] Supabase already running');
+  } catch (_) {
+    console.log('[caenan] Starting Supabase...');
+    spawn('supabase', ['start'], {
+      cwd: APP_ROOT,
+      detached: true,
+      stdio: 'ignore',
+    }).unref();
+  }
+}
+
+// ── Wait for HTTP server ──────────────────────────────────────────────────────
+function waitForServer(url, timeoutMs = 60000) {
+  const http = require('http');
+  return new Promise((resolve, reject) => {
+    const deadline = Date.now() + timeoutMs;
+    function attempt() {
+      http.get(url, (res) => {
+        if (res.statusCode < 500) return resolve();
+        if (Date.now() > deadline) return reject(new Error('timeout'));
+        setTimeout(attempt, 600);
+      }).on('error', () => {
+        if (Date.now() > deadline) return reject(new Error('timeout'));
+        setTimeout(attempt, 600);
+      });
+    }
+    attempt();
+  });
+}
+
+// ── Start Next.js using Electron's own Node runtime ───────────────────────────
+// Uses child_process.fork — inherits Electron's bundled Node, no system Node needed
+function startNextServer() {
+  const standaloneServer = path.join(APP_ROOT, '.next', 'standalone', 'server.js');
+
+  if (!fs.existsSync(standaloneServer)) {
+    dialog.showErrorBox(
+      'Build Missing',
+      `Standalone Next.js build not found at:\n${standaloneServer}\n\nRun: npm run electron:build:mac (or linux/win)`
+    );
+    app.quit();
+    return;
+  }
+
+  const env = {
+    ...process.env,
+    PORT: String(PORT),
+    NODE_ENV: 'production',
+    // Point to local Supabase
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321',
+  };
+
+  // fork() uses Electron's built-in Node — no system Node.js required
+  serverProcess = fork(standaloneServer, [], {
+    cwd: path.join(APP_ROOT, '.next', 'standalone'),
+    env,
+    silent: true,
+  });
+
+  serverProcess.stdout?.on('data', (d) => process.stdout.write(d));
+  serverProcess.stderr?.on('data', (d) => process.stderr.write(d));
+  serverProcess.on('exit', (code) => console.log(`[caenan] server exited (${code})`));
+}
 
 // ── Main window ───────────────────────────────────────────────────────────────
 function createWindow() {
@@ -36,7 +113,6 @@ function createWindow() {
   mainWindow.loadURL(APP_URL);
   mainWindow.once('ready-to-show', () => mainWindow.show());
 
-  // Open new-tab links in the default browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
@@ -54,7 +130,7 @@ function createTray() {
   tray.setToolTip('Caenan Local Edge');
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Open Caenan', click: () => mainWindow ? mainWindow.show() : createWindow() },
-    { label: 'Open in Browser', click: () => shell.openExternal(APP_URL) },
+    { label: 'Supabase Studio', click: () => shell.openExternal('http://127.0.0.1:54323') },
     { type: 'separator' },
     { label: 'Quit', click: () => app.quit() },
   ]));
@@ -62,9 +138,22 @@ function createTray() {
 }
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  tryStartSupabase();
+  startNextServer();
+
+  try {
+    await waitForServer(APP_URL);
+  } catch (err) {
+    dialog.showErrorBox('Startup Failed',
+      `Local server did not start at ${APP_URL}.\n\nMake sure Docker is running for Supabase.\n\n${err.message}`);
+    app.quit();
+    return;
+  }
+
   createWindow();
   createTray();
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
@@ -72,4 +161,9 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('before-quit', () => {
+  serverProcess?.kill('SIGTERM');
+  serverProcess = null;
 });

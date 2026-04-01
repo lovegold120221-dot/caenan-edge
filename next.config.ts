@@ -9,6 +9,19 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '10mb',
     },
   },
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Permissions-Policy',
+            value: 'microphone=(self), camera=()',
+          },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     return [{ source: '/api/v1/:path*', destination: '/api/:path*' }];
   },

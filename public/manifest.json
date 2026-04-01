@@ -2,11 +2,12 @@
   "name": "Caenan",
   "short_name": "Caenan",
   "description": "Voice, agents, and call automation console.",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#0a0a0a",
   "theme_color": "#0a0a0a",
   "orientation": "portrait-primary",
+  "permissions": ["microphone"],
   "icons": [
     {
       "src": "/icon-192.png",

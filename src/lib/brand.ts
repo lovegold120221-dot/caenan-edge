@@ -1,4 +1,4 @@
-export const PLATFORM_NAME = "Eburon AI";
+export const PLATFORM_NAME = "Caenan";
 export const PLATFORM_DESCRIPTION = "Voice, agents, and call automation console.";
 
 export const TTS_MODEL_LABELS = {

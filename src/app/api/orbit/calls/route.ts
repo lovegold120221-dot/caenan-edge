@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { fetchCalls } from '@/lib/services/orbit';
 import { logApiUsage, requireApiPrincipal } from '@/lib/api-key-auth';
+import { syncCaenanCallsToLocal } from '@/lib/services/caenan-call-sync';
 
 export const dynamic = 'force-dynamic';
+
+const CAENAN_ASSISTANT_ID = '110c9b86-2ea9-423d-a3dd-d5914cfec49b';
 
 export async function GET(request: Request) {
   const startedAtMs = Date.now();
@@ -19,6 +22,13 @@ export async function GET(request: Request) {
     if (limit != null && limit !== '') params.limit = Number(limit);
     if (assistantId) params.assistantId = assistantId;
     const calls = await fetchCalls(Object.keys(params).length > 0 ? params : undefined);
+
+    // Sync Caenan calls to local Supabase in the background (non-blocking)
+    const caenanCalls = calls.filter((c) => c.assistantId === CAENAN_ASSISTANT_ID);
+    syncCaenanCallsToLocal(caenanCalls).catch((e) =>
+      console.error('[sync] background sync error:', e)
+    );
+
     return NextResponse.json(calls);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';

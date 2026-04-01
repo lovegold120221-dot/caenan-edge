@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { fetchCallById } from '@/lib/services/orbit';
 import { logApiUsage, requireApiPrincipal } from '@/lib/api-key-auth';
+import { syncCaenanCallsToLocal } from '@/lib/services/caenan-call-sync';
 
 export const dynamic = 'force-dynamic';
+
+const CAENAN_ASSISTANT_ID = '110c9b86-2ea9-423d-a3dd-d5914cfec49b';
 
 export async function GET(
   request: Request,
@@ -22,6 +25,14 @@ export async function GET(
       return NextResponse.json({ error: errorMessage }, { status });
     }
     const call = await fetchCallById(id);
+
+    // Sync full call detail (transcript + artifact) to local Supabase
+    if (call && call.assistantId === CAENAN_ASSISTANT_ID) {
+      syncCaenanCallsToLocal([call]).catch((e) =>
+        console.error('[sync] detail sync error:', e)
+      );
+    }
+
     return NextResponse.json(call);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';

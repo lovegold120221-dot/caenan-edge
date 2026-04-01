@@ -32,7 +32,7 @@ import {
 
 import OrbitCore from "@vapi-ai/web";
 import { Voice, UserTtsHistoryItem } from "@/lib/services/echo";
-import DocsPane from "@/components/DocsPane";
+import LocalDataPane from "@/components/LocalDataPane";
 import { TTS_MODEL_LABELS } from "@/lib/brand";
 import { enhanceTextForTTS, normalizeForTTS } from "@/lib/tts-enhancer";
 import { supabase } from "@/lib/supabase";
@@ -60,14 +60,14 @@ const languageDialectMap: Record<string, string[]> = {
   "Russian": ["Russia", "Belarus", "Kazakhstan"],
 };
 
-// Default sample agent (Gregory-inbound) for testing Orbit Web Call and Create defaults
+// Default agent — Caenan Assistant
 const DEFAULT_SAMPLE_AGENT = {
   id: "110c9b86-2ea9-423d-a3dd-d5914cfec49b",
-  name: "Gregory-inbound",
+  name: "Caenan Assistant",
 } as const;
 
-// Fallback defaults when the Gregory-inbound assistant cannot be loaded remotely
-const DEFAULT_AGENT_NAME = "Gregory-inbound";
+// Fallback defaults when the assistant cannot be loaded remotely
+const DEFAULT_AGENT_NAME = "Caenan Assistant";
 const DEFAULT_AGENT_INTRO = "Dag! Hier Gregory Caenen. Fijn dat we elkaar gesproken hebben. Ik kijk ernaar uit u volgende week te ontmoeten bij project De Polder. Tot dan!";
 const DEFAULT_AGENT_SKILLS = `[Identity]
 You are Gregory Caenen, a worldly Belgian from the coast and CEO of Group Caenen. You radiate genuine warmth, quiet confidence, and an easy, mischievous wit. Every caller feels instantly welcome, like an old friend sharing a coffee. Your approach embodies relaxed Belgian hospitality: open, easy-going, discreetly humorous, and truly human.
@@ -230,7 +230,7 @@ export default function Dashboard() {
   const [loadingHistoryId, setLoadingHistoryId] = useState<string | null>(null);
   const [downloadMenuId, setDownloadMenuId] = useState<string | null>(null);
   const downloadMenuRef = useRef<HTMLDivElement>(null);
-  const [docsCopyFeedback, setDocsCopyFeedback] = useState("");
+
   const [apiBaseUrl, setApiBaseUrl] = useState("https://your-domain.com");
   const [apiKeys, setApiKeys] = useState<ApiKeyItem[]>([]);
   const [isApiKeysLoading, setIsApiKeysLoading] = useState(false);
@@ -508,7 +508,7 @@ export default function Dashboard() {
   const fetchCallLogs = useCallback(async () => {
     setIsCallLogsLoading(true);
     try {
-      const params = new URLSearchParams({ limit: "100" });
+      const params = new URLSearchParams({ limit: "100", assistantId: DEFAULT_SAMPLE_AGENT.id });
       const res = await authedFetch(`/api/orbit/calls?${params}`, { cache: "no-store" });
       const data = await res.json();
       if (Array.isArray(data)) setCallLogs(data);
@@ -571,7 +571,7 @@ export default function Dashboard() {
     { id: "pane-Create", label: "Create", icon: <Mic size={18} />, desc: "Describe your agent with voice or text" },
     { id: "pane-agents", label: "Templates", icon: <Users size={18} />, desc: "Create and connect to AI templates" },
     { id: "pane-call-logs", label: "Call Logs", icon: <Phone size={18} />, desc: "All call history" },
-    { id: "pane-docs", label: "Docs", icon: <FileText size={18} />, desc: "API documentation and test inbound" },
+    { id: "pane-docs", label: "Local Data", icon: <Database size={18} />, desc: "View and inspect your local Supabase database" },
     { id: "pane-settings", label: "Settings", icon: <SettingsIcon size={18} />, desc: "Configure default voice models and format" },
   ];
 
@@ -1264,19 +1264,10 @@ export default function Dashboard() {
     }
   }, [activeTab, user, loadAgentFormDefaults, fetchUserAgents]);
 
-  // Always include default sample agent first, then fetched agents (no duplicate id)
+  // Show only the default Caenan Assistant — hide all other agents
   const displayAgents = useMemo(() => {
-    const seen = new Set<string>();
-    const out: { id: string; name?: string; userId?: string }[] = [{ ...DEFAULT_SAMPLE_AGENT }];
-    seen.add(DEFAULT_SAMPLE_AGENT.id);
-    agentBases.forEach((a) => {
-      if (!seen.has(a.id)) {
-        seen.add(a.id);
-        out.push(a);
-      }
-    });
-    return out;
-  }, [agentBases]);
+    return [{ ...DEFAULT_SAMPLE_AGENT }];
+  }, []);
 
   const [showUserProfile, setShowUserProfile] = useState(false);
 
@@ -1796,7 +1787,7 @@ export default function Dashboard() {
               alt="Eburon"
               className="mx-auto mb-4 rounded-xl logo-img-lg"
             />
-            <h1>Eburon AI</h1>
+            <h1>Caenan Local Edge</h1>
           </div>
 
           <div className="auth-tabs">
@@ -1896,7 +1887,7 @@ export default function Dashboard() {
               className="rounded-xl logo-img"
             />
             <div>
-              <div className="brand-name">Eburon AI</div>
+              <div className="brand-name">Caenan Local Edge</div>
             </div>
           </div>
 
@@ -3230,6 +3221,7 @@ export default function Dashboard() {
                 ) : (() => {
                   const filtered = callLogs.filter(c => {
                     if (c.id === "019d3f0a-daa4-7eea-badf-514992bfb3e1") return false;
+                    if (c.assistantId && c.assistantId !== DEFAULT_SAMPLE_AGENT.id) return false;
                     return true;
                   });
                   return filtered.length === 0 ? (
@@ -3722,39 +3714,7 @@ Jane Smith,+15559876543`}
           )}
 
           {activeTab === "pane-docs" && (
-            <div className="tab-pane active docs-pane-wrapper">
-              <DocsPane
-                apiBaseUrl={apiBaseUrl}
-                onCopyFeedback={(msg: string) => {
-                  setDocsCopyFeedback(msg);
-                  setTimeout(() => setDocsCopyFeedback(""), 2000);
-                }}
-                isAuthenticated={!!user}
-                apiKeyName={newApiKeyName}
-                onApiKeyNameChange={setNewApiKeyName}
-                onCreateApiKey={handleCreateApiKey}
-                onRefreshApiKeys={() => {
-                  fetchApiKeys();
-                  fetchApiUsage();
-                }}
-                isApiKeysLoading={isApiKeysLoading}
-                apiKeysStatus={apiKeysStatus}
-                newlyCreatedApiKey={newlyCreatedApiKey}
-                onCopyNewApiKey={async () => {
-                  try {
-                    await navigator.clipboard.writeText(newlyCreatedApiKey);
-                    setApiKeysStatus("API key copied.");
-                  } catch {
-                    setApiKeysStatus("Could not copy key.");
-                  }
-                }}
-              />
-              {docsCopyFeedback && (
-                <div className="docs-copy-toast">
-                  {docsCopyFeedback}
-                </div>
-              )}
-            </div>
+            <LocalDataPane />
           )}
 
           {activeTab === "pane-settings" && (

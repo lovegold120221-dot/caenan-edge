@@ -5,7 +5,7 @@ const { fork, execSync, spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
-const PORT = 3000;
+const PORT = 3375;
 const APP_URL = `http://localhost:${PORT}`;
 
 let mainWindow = null;

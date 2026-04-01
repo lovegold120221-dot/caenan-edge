@@ -547,6 +547,16 @@ export default function Dashboard() {
       return;
     }
 
+    // Request microphone permission before starting call
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(t => t.stop()); // Release immediately, Vapi will request again
+    } catch (micErr) {
+      console.error("Microphone permission denied:", micErr);
+      alert("Microphone access is required for voice calls. Please allow microphone permission and try again.");
+      return;
+    }
+
     setShowTestCallModal(true);
     setCallVolume(0);
     setTranscript([]);

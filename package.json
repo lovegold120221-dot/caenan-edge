@@ -51,8 +51,7 @@
     "files": [
       "electron/**/*",
       "build/icon.*",
-      "package.json",
-      "electron/logo.png"
+      "package.json"
     ],
     "mac": {
       "target": [
@@ -105,18 +104,18 @@
         "from": "supabase",
         "to": "app/supabase",
         "filter": [
-          "migrations/**/*",
           "config.toml",
-          "seed.sql"
+          "migrations/**/*"
         ]
-      },
-      {
-        "from": "electron/setup.html",
-        "to": "setup.html"
       }
     ],
     "deb": {
       "afterInstall": "scripts/postinstall-linux.sh"
     }
-  }
+  },
+  "author": {
+    "name": "Caenan",
+    "email": "app@caenan.ai"
+  },
+  "description": "Caenan Local Edge \u2014 AI Voice Agent Console"
 }

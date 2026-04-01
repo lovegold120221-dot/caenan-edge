@@ -8,11 +8,12 @@ const path  = require('path');
 const fs    = require('fs');
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const APP_URL    = 'https://echolab.eburon.ai/';
-const SETUP_FLAG = path.join(app.getPath('userData'), 'setup-complete');
-const APP_ROOT   = app.isPackaged
-  ? path.join(process.resourcesPath, 'app')
-  : path.join(__dirname, '..');
+const APP_URL      = 'https://echolab.eburon.ai/';
+const SETUP_FLAG   = path.join(app.getPath('userData'), 'setup-complete');
+// Supabase project dir: bundled in extraResources/app/supabase (packaged) or repo root (dev)
+const SUPABASE_DIR = app.isPackaged
+  ? path.join(process.resourcesPath, 'app', 'supabase')
+  : path.join(__dirname, '..', 'supabase');
 
 // ─── Windows ──────────────────────────────────────────────────────────────────
 let mainWindow   = null;
@@ -141,12 +142,12 @@ async function stepSupabaseStart(sender) {
   sender.send('setup:step', { id: 'supabase_start', state: 'active', status: 'starting…' });
   const env = buildEnv();
   try {
-    execSync('supabase status', { cwd: APP_ROOT, env, stdio: 'pipe' });
+    execSync('supabase status', { cwd: SUPABASE_DIR, env, stdio: 'pipe' });
     sender.send('setup:step', { id: 'supabase_start', state: 'skip', status: 'already running' });
     return;
   } catch { /* not running yet */ }
   sender.send('setup:log', 'Running: supabase start (pulls Docker images on first run — may take a few minutes)…');
-  await runCmd(sender, 'supabase', ['start'], { cwd: APP_ROOT });
+  await runCmd(sender, 'supabase', ['start'], { cwd: SUPABASE_DIR });
   sender.send('setup:step', { id: 'supabase_start', state: 'done', status: 'running on :54321' });
 }
 
@@ -212,9 +213,9 @@ async function runSetup(sender) {
 function startServices() {
   const env = buildEnv();
   // Supabase
-  try { execSync('supabase status', { cwd: APP_ROOT, env, stdio: 'pipe' }); }
+  try { execSync('supabase status', { cwd: SUPABASE_DIR, env, stdio: 'pipe' }); }
   catch {
-    spawn('supabase', ['start'], { cwd: APP_ROOT, env, detached: true, stdio: 'ignore' }).unref();
+    spawn('supabase', ['start'], { cwd: SUPABASE_DIR, env, detached: true, stdio: 'ignore' }).unref();
   }
   // Ollama serve
   try { execSync('curl -s http://localhost:11434', { stdio: 'pipe' }); }

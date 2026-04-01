@@ -28,8 +28,9 @@ function buildEnv() {
   const env = { ...process.env };
   if (process.platform === 'darwin') {
     env.PATH = [
-      '/opt/homebrew/bin', '/opt/homebrew/sbin',
-      '/usr/local/bin', '/usr/bin', '/bin', '/usr/sbin', '/sbin',
+      '/opt/homebrew/bin', '/opt/homebrew/sbin', // Apple Silicon
+      '/usr/local/bin', '/usr/local/sbin',        // Intel
+      '/usr/bin', '/bin', '/usr/sbin', '/sbin',
       env.PATH,
     ].filter(Boolean).join(':');
   } else if (process.platform === 'linux') {
@@ -73,6 +74,32 @@ function isInstalled(bin) {
 }
 
 // ─── Setup steps ──────────────────────────────────────────────────────────────
+
+async function stepBrew(sender) {
+  sender.send('setup:step', { id: 'brew', state: 'active', status: 'checking…' });
+  if (process.platform !== 'darwin') {
+    sender.send('setup:step', { id: 'brew', state: 'skip', status: 'N/A' });
+    return;
+  }
+  if (isInstalled('brew')) {
+    sender.send('setup:step', { id: 'brew', state: 'skip', status: 'already installed' });
+    return;
+  }
+  sender.send('setup:log', 'Installing Homebrew (this may take a few minutes)…');
+  // Non-interactive Homebrew install
+  await runCmd(sender, '/bin/bash', ['-c',
+    'NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"',
+  ]);
+  // Add brew to PATH for Apple Silicon
+  const brewPaths = ['/opt/homebrew/bin/brew', '/usr/local/bin/brew'];
+  for (const bp of brewPaths) {
+    if (fs.existsSync(bp)) {
+      try { execSync(`${bp} --version`, { stdio: 'pipe' }); } catch { /**/ }
+      break;
+    }
+  }
+  sender.send('setup:step', { id: 'brew', state: 'done', status: 'installed' });
+}
 
 async function stepSystem(sender) {
   sender.send('setup:step', { id: 'system', state: 'active', status: 'checking…' });
@@ -193,6 +220,7 @@ async function stepModel(sender) {
 async function runSetup(sender) {
   const steps = [
     stepSystem,
+    stepBrew,
     stepDocker,
     stepDockerStart,
     stepSupabaseCLI,

@@ -61,7 +61,7 @@ export default function LandingPage() {
               <Download size={15} /> Install App
             </button>
           )}
-          <a href="/app" style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "#1a1a1a", color: "#f5f5f5", border: "1px solid #2a2a2a", borderRadius: 8, fontWeight: 600, fontSize: 14, textDecoration: "none" }}>
+          <a href="/dashboard" style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "#1a1a1a", color: "#f5f5f5", border: "1px solid #2a2a2a", borderRadius: 8, fontWeight: 600, fontSize: 14, textDecoration: "none" }}>
             Launch App <ArrowRight size={14} />
           </a>
         </div>
@@ -93,7 +93,7 @@ export default function LandingPage() {
               <Monitor size={18} /> How to Install
             </button>
           )}
-          <a href="/app" style={{ display: "flex", alignItems: "center", gap: 8, padding: "14px 28px", background: "#1a1a1a", color: "#f5f5f5", border: "1px solid #2a2a2a", borderRadius: 10, fontWeight: 600, fontSize: 16, textDecoration: "none" }}>
+          <a href="/dashboard" style={{ display: "flex", alignItems: "center", gap: 8, padding: "14px 28px", background: "#1a1a1a", color: "#f5f5f5", border: "1px solid #2a2a2a", borderRadius: 10, fontWeight: 600, fontSize: 16, textDecoration: "none" }}>
             Open in Browser <ArrowRight size={16} />
           </a>
         </div>
@@ -149,7 +149,7 @@ export default function LandingPage() {
                   <Download size={15} /> Install Now
                 </button>
               )}
-              <a href="/app" style={{ display: "flex", alignItems: "center", gap: 7, padding: "11px 22px", background: "#1a1a1a", color: "#ccc", border: "1px solid #2a2a2a", borderRadius: 8, fontWeight: 600, fontSize: 14, textDecoration: "none" }}>
+              <a href="/dashboard" style={{ display: "flex", alignItems: "center", gap: 7, padding: "11px 22px", background: "#1a1a1a", color: "#ccc", border: "1px solid #2a2a2a", borderRadius: 8, fontWeight: 600, fontSize: 14, textDecoration: "none" }}>
                 Skip — Open in Browser
               </a>
             </div>
@@ -160,7 +160,7 @@ export default function LandingPage() {
       {/* ── FOOTER ── */}
       <footer style={{ borderTop: "1px solid #1a1a1a", padding: "24px 40px", display: "flex", alignItems: "center", justifyContent: "space-between", color: "#444", fontSize: 13 }}>
         <span>© 2026 Caenan</span>
-        <a href="/app" style={{ color: "#666", textDecoration: "none" }}>Launch App →</a>
+        <a href="/dashboard" style={{ color: "#666", textDecoration: "none" }}>Launch App →</a>
       </footer>
     </div>
   );

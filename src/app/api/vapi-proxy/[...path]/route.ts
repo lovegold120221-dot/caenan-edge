@@ -5,12 +5,20 @@ const VAPI_BASE = "https://api.vapi.ai";
 export const dynamic = "force-dynamic";
 
 async function proxy(req: NextRequest, segments: string[]) {
+  const apiKey = process.env.VAPI_PRIVATE_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: "VAPI_PRIVATE_API_KEY not configured" },
+      { status: 500 }
+    );
+  }
+
   const path = segments.join("/");
   const search = req.nextUrl.search ?? "";
   const url = `${VAPI_BASE}/${path}${search}`;
 
   const headers = new Headers();
-  headers.set("Authorization", `Bearer ${process.env.VAPI_PRIVATE_API_KEY ?? ""}`);
+  headers.set("Authorization", `Bearer ${apiKey}`);
   const ct = req.headers.get("content-type");
   if (ct) headers.set("content-type", ct);
 

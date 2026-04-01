@@ -96,6 +96,7 @@ export async function syncCaenanCallsToLocal(calls: VapiCall[]): Promise<void> {
       summary:              call.analysis?.summary ?? null,
       cost:                 call.cost ?? null,
       full_payload:         call as unknown as Record<string, unknown>,
+      created_at:           call.startedAt ?? call.createdAt ?? new Date().toISOString(),
       synced_at:            new Date().toISOString(),
     };
 

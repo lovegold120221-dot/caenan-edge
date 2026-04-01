@@ -10,10 +10,10 @@
     "smoke": "node scripts/smoke-test.mjs",
     "electron": "electron .",
     "electron:dev": "NODE_ENV=development electron .",
-    "electron:build:mac": "NEXT_OUTPUT=standalone npm run build && electron-builder --mac --publish never",
-    "electron:build:linux": "NEXT_OUTPUT=standalone npm run build && electron-builder --linux --publish never",
-    "electron:build:win": "NEXT_OUTPUT=standalone npm run build && electron-builder --win --publish never",
-    "electron:build:all": "NEXT_OUTPUT=standalone npm run build && electron-builder --mac --linux --win --publish never"
+    "electron:build:mac": "electron-builder --mac --publish never",
+    "electron:build:linux": "electron-builder --linux --publish never",
+    "electron:build:win": "electron-builder --win --publish never",
+    "electron:build:all": "electron-builder --mac --linux --win --publish never"
   },
   "dependencies": {
     "@knadh/oat": "^0.4.1",
@@ -50,29 +50,7 @@
     },
     "files": [
       "electron/**/*",
-      ".next/**/*",
-      "public/**/*",
-      "package.json",
-      "next.config.ts",
-      "tsconfig.json",
-      "!.next/cache",
-      "!**/*.map"
-    ],
-    "extraResources": [
-      {
-        "from": ".",
-        "to": "app",
-        "filter": [
-          "node_modules/**/*",
-          "src/**/*",
-          "supabase/migrations/**/*",
-          "public/**/*",
-          ".next/**/*",
-          "next.config.ts",
-          "tsconfig.json",
-          "package.json"
-        ]
-      }
+      "package.json"
     ],
     "mac": {
       "target": [
@@ -105,12 +83,6 @@
       "icon": "build/icon.png",
       "category": "Utility",
       "description": "Caenan Local Edge \u2014 AI Voice Agent Console"
-    },
-    "deb": {
-      "depends": [
-        "docker.io | docker-ce",
-        "nodejs"
-      ]
     },
     "win": {
       "target": [

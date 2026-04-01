@@ -1784,9 +1784,8 @@ export default function Dashboard() {
           <div className="auth-header text-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="https://eburon.ai/icon-eburon.svg"
-              alt="Eburon"
-              className="mx-auto mb-4 rounded-xl logo-img-lg"
+              src="/images/logo.png"
+              alt="Caenan"
             />
             <h1>Caenan Local Edge</h1>
           </div>
@@ -1883,9 +1882,8 @@ export default function Dashboard() {
           <div className="brand">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="https://eburon.ai/icon-eburon.svg"
-              alt="Eburon"
-              className="rounded-xl logo-img"
+              src="/images/logo.png"
+              alt="Caenan"
             />
             <div>
               <div className="brand-name">Caenan Local Edge</div>

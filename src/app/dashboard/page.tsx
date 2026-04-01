@@ -61,10 +61,10 @@ const languageDialectMap: Record<string, string[]> = {
   "Russian": ["Russia", "Belarus", "Kazakhstan"],
 };
 
-// Default agent — Caenan Assistant
+// Default agent — Caenan Assistant from echo.eburon.ai
 const DEFAULT_SAMPLE_AGENT = {
-  id: "0bad3e7a-c416-44cc-aedb-08516c7db5bd",
-  name: "Caenan Assistant",
+  id: "87a37c8e-b4df-4f44-a9d3-f27f5726aa43",
+  name: "Caenen-Agent",
 } as const;
 
 // Fallback defaults when the assistant cannot be loaded remotely
@@ -1188,8 +1188,8 @@ export default function Dashboard() {
     setIsFetchingBases(true);
     setAgentBasesError(null);
     try {
-      // Fetch from Supabase user_agents table instead of Vapi
-      const res = await authedFetch("/api/user-agents");
+      // Fetch from echo.eburon.ai API
+      const res = await fetch("/api/echo/agents");
       const data = await res.json();
       if (!res.ok) {
         const msg = typeof data?.error === 'string' ? data.error : 'Failed to load agents';
@@ -1200,12 +1200,12 @@ export default function Dashboard() {
       setAgentBases(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Failed to fetch agents:", error);
-      setAgentBasesError("Could not load agents from database.");
+      setAgentBasesError("Could not load agents from server.");
       setAgentBases([]);
     } finally {
       setIsFetchingBases(false);
     }
-  }, [authedFetch]);
+  }, []);
 
   useEffect(() => {
     if (activeTab === "pane-agents" || activeTab === "pane-Create" || activeTab === "pane-call-logs") {
@@ -1213,13 +1213,13 @@ export default function Dashboard() {
     }
   }, [activeTab, fetchAgentBases]);
 
-  // Load agent form defaults from Supabase user_agents
+  // Load agent form defaults from echo.eburon.ai
   const loadAgentFormDefaults = useCallback(async () => {
     if (!user) return;
     try {
       const [userRes, agentsRes] = await Promise.all([
         authedFetch("/api/user-assistant"),
-        authedFetch("/api/user-agents", { cache: "no-store" }),
+        fetch("/api/echo/agents", { cache: "no-store" }),
       ]);
       const userData = await userRes.json();
       const agentsRaw = await agentsRes.json();
@@ -1227,9 +1227,9 @@ export default function Dashboard() {
       const myAssistantId = userData?.assistantId ?? null;
       setUserAssistantId(myAssistantId);
 
-      // Find Caenan assistant or user's own
-      const caenan = agents.find((a: { id?: string }) => a.id === DEFAULT_SAMPLE_AGENT.id)
-        ?? agents.find((a: { name?: string }) => /caenan/i.test(a.name || ""));
+      // Find Caenan or Gregory agent from echo API
+      const caenan = agents.find((a: { name?: string }) => /caenan/i.test(a.name || ""))
+        ?? agents.find((a: { name?: string }) => /gregory/i.test(a.name || ""));
       const defaultAgent = myAssistantId
         ? agents.find((a: { id?: string }) => a.id === myAssistantId) ?? caenan
         : caenan;
@@ -1237,10 +1237,14 @@ export default function Dashboard() {
       if (defaultAgent) {
         setNewAgentName(defaultAgent.name || DEFAULT_AGENT_NAME);
         setAgentIntroSpiel(defaultAgent.firstMessage || DEFAULT_AGENT_INTRO);
-        setAgentSkillsPrompt(defaultAgent.systemPrompt || DEFAULT_AGENT_SKILLS);
-        setAgentLanguage(defaultAgent.language === "multi" ? "multilingual" : defaultAgent.language || "multilingual");
-        if (defaultAgent.voiceProvider && defaultAgent.voiceId) {
-          setAgentVoice(`${defaultAgent.voiceProvider}:${defaultAgent.voiceId}`);
+        // Echo API uses model.messages for system prompt
+        const sysMsg = defaultAgent.model?.messages?.find((m: { role?: string }) => m.role === "system");
+        setAgentSkillsPrompt(sysMsg?.content || DEFAULT_AGENT_SKILLS);
+        const lang = defaultAgent.transcriber?.language;
+        setAgentLanguage(lang === "multi" ? "multilingual" : lang || "multilingual");
+        const v = defaultAgent.voice;
+        if (v?.provider && v?.voiceId) {
+          setAgentVoice(`${v.provider}:${v.voiceId}`);
         }
       }
     } catch {
@@ -1251,7 +1255,7 @@ export default function Dashboard() {
   const fetchUserAgents = useCallback(async () => {
     if (!user) return;
     try {
-      const res = await authedFetch("/api/user-agents", { cache: "no-store" });
+      const res = await fetch("/api/echo/agents", { cache: "no-store" });
       const data = await res.json();
       if (Array.isArray(data)) {
         setUserAgents(data);
@@ -1259,7 +1263,7 @@ export default function Dashboard() {
     } catch (error) {
       console.error("Failed to fetch user agents:", error);
     }
-  }, [authedFetch, user]);
+  }, [user]);
 
   useEffect(() => {
     if ((activeTab === "pane-agents" || activeTab === "pane-Create") && user) {
@@ -1268,13 +1272,13 @@ export default function Dashboard() {
     }
   }, [activeTab, user, loadAgentFormDefaults, fetchUserAgents]);
 
-  // Show only the Caenan Assistant from server-fetched list
+  // Show only Caenan/Gregory assistant from echo.eburon.ai
   const displayAgents = useMemo(() => {
-    // Find Caenan assistant from fetched agents, fall back to default
-    const caenan = agentBases.find((a) => a.id === DEFAULT_SAMPLE_AGENT.id)
-      ?? agentBases.find((a) => /caenan/i.test(a.name || ''));
+    // Find Caenan or Gregory from the echo API list
+    const caenan = agentBases.find((a) => /caenan/i.test(a.name || ''))
+      ?? agentBases.find((a) => /gregory/i.test(a.name || ''));
     if (caenan) return [caenan];
-    // If not found in fetched list, show default
+    // If not found, show default
     return [{ ...DEFAULT_SAMPLE_AGENT }];
   }, [agentBases]);
 
